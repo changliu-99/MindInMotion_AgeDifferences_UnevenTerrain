@@ -10,7 +10,9 @@ This study was supported by the National Institute of Health (U01AG061389) for a
 
 ## Readme before use
 <p align="justify">
-This Github Repo's code only contains steps after AMICA. Please refer to https://github.com/JacobSal/MindInMotion_Functions/tree/master for all the preprocessing steps, such as filtering, removal of noise channels, etc. 
+1. This Github Repo's code only contains steps after AMICA. Please refer to https://github.com/JacobSal/MindInMotion_Functions/tree/master for all the preprocessing steps, such as filtering, removal of noise channels, etc. 
+2. Since Mind in Motion is a large dataset, we used hipercomputing cluster for data processing. 
+  
 </p>
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
