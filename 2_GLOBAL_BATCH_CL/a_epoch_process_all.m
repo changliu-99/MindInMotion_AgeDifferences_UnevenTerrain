@@ -9,7 +9,7 @@
 
 %   Chang Liu - 20231218
 %   Epoch for resting/walking trials for all ICS
-
+%   Done - Cleanup for publish - 20250930
 
 %% Initialization
 % opengl('dsave', 'software') % might be needed to plot dipole plots?
@@ -119,9 +119,7 @@ PERCENT_OVERLAP = 0.0; % percent overlap between epochs % Chang Liu 12/18/2023 s
 %* gait
 EVENT_CHAR = 'RHS'; %{'RHS', 'LTO', 'LHS', 'RTO', 'RHS'};
 STD_TIMEWARP = 3;
-EPOCH_TIME_LIMITS = [-1,4.25]; %[-1,3]; %[-0.5,5]; % [-1,3] captures gait events well , [-0.5,5] captures gait events poorly
-% (10/13/20223) changing from [-1,4.25] to [-0.5,4.5] to match chang's
-% (10/25/20223) changing from [-0.5,4.5] to [-1,4.25] as it seems to help
+EPOCH_TIME_LIMITS = [-1,4.25]; 
 % with frequency decomposition artifact during ERSP creation
 % paper
 TIMEWARP_EVENTS = {'RHS', 'LTO', 'LHS', 'RTO', 'RHS'};
@@ -151,11 +149,9 @@ OUTSIDE_DATA_DIR = [source_dir filesep DATA_SET filesep OA_PREP_FPATH]; % JACOB,
 
 DATA_DIR = RAW_DATA_DIR;
 
-% study_fName_1 = sprintf('%s_all_comps_study',[TRIAL_TYPES{:}]);
-% study_fName_2 = sprintf('%s_EPOCH_study',[TRIAL_TYPES{:}]);
 study_fName_1 = 'all_comps_study';
 study_fName_2 = 'epoch_study_all';
-% TRIAL_OVERRIDE_FPATH = [STUDIES_DIR filesep 'subject_mgmt' filesep 'trial_event_indices_override.xlsx'];
+
 save_dir = [STUDIES_DIR filesep sprintf('%s',dt)];
 %- create new study directory
 if ~exist(save_dir,'dir')
@@ -169,9 +165,7 @@ subjectNames    = cell(1,length([SUBJ_ITERS{:}]));
 fNames          = cell(1,length([SUBJ_ITERS{:}]));
 fPaths          = cell(1,length([SUBJ_ITERS{:}]));
 chanlocs_fPaths   = cell(1,length([SUBJ_ITERS{:}]));
-% dipfit_fPaths   = cell(1,length([SUBJ_ITERS{:}]));
 dipfit_norm_fPaths = cell(1,length([SUBJ_ITERS{:}]));
-% vol_fPaths = cell(1,length([SUBJ_ITERS{:}]));
 stack_iter = 0;
 for group_i = 1:length(SUBJ_ITERS)
     sub_idx = SUBJ_ITERS{group_i}; %1:2; %1:length(SUBJ_PICS{GROUP_INT}); %1:2;
@@ -186,15 +180,11 @@ for group_i = 1:length(SUBJ_ITERS)
         try
             fNames{cnt} = tmp.name;
             %- Chanlocs fPaths
-    %         chanlocs_fPaths{cnt} = [DATA_DIR filesep DATA_SET filesep SUBJ_PICS{group_i}{subj_i} filesep 'EEG' filesep 'HeadScan' filesep 'CustomElectrodeLocations.mat'];
             chanlocs_fPaths{cnt} = [DATA_DIR filesep DATA_SET filesep SUBJ_PICS{group_i}{subj_i} filesep 'MRI' filesep 'CustomElectrodeLocations.mat'];
-    %         dipfit_fPaths{cnt} = [OUTSIDE_DATA_DIR filesep SUBJ_PICS{group_i}{subj_i} filesep 'head_model' filesep 'dipfit_struct.mat'];
-%             dipfit_norm_fPaths{cnt} = [fPaths{cnt} filesep 'dipfit_fem_norm.mat'];
-            dipfit_norm_fPaths{cnt} = [fPaths{cnt} filesep 'dipfit_fem_norm_ants.mat'];
+            dipfit_norm_fPaths{cnt} = [fPaths{cnt} filesep 'dipfit_fem_norm_ants.mat'];% use normalized dipfit folder
             %- Prints
             fprintf('==== Subject %s Paths ====\n',SUBJ_PICS{group_i}{subj_i})
             fprintf('ICA Exists: %i\n',(exist([fPaths{cnt} filesep fNames{cnt}],'file') && exist([fPaths{cnt} filesep 'W'],'file')))
-    %         fprintf('DIPFIT Exists: %i\n',exist(dipfit_fPaths{cnt},'file'));
             fprintf('Normalized DIPFIT Exists: %i\n',exist(dipfit_norm_fPaths{cnt},'file'));
         catch e
             fprintf('==== Subject %s Paths ====\n',SUBJ_PICS{group_i}{subj_i})
@@ -237,8 +227,6 @@ end
 % fPaths = {MAIN_ALLEEG.filepath};
 % fNames = {MAIN_ALLEEG.filename};
 LOOP_VAR = 1:length(fPaths);
-% tmp = cell(1,length(MAIN_ALLEEG));
-% rmv_subj = zeros(1,length(MAIN_ALLEEG));
 %- clear vars for memory
 % clear MAIN_ALLEEG
 %% GENERATE EPOCH MAIN FUNC
