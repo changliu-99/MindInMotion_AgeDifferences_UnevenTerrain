@@ -1,35 +1,21 @@
-% Create study for cluster ICs after rejecting ICs that are not brain 
+%   Project Title: MiM Age difference paper
 
-% Chang Liu - 2021-11-23 - V1
-% Chang Liu - 2025-5-7 Find a bug that the code is adding wrong comps to
-% the subject. Add code to check if the subject name match
+%   Create study for cluster ICs after rejecting ICs that are not brain
+%   Run after DIPFIT and epoching. This puts all good dipoles into a study for
+%   clustering and ERSP plotting.
 
-%Run after DIPFIT and epoching. This puts all good dipoles into a study for
-%clustering and ERSP plotting.
+%   Chang Liu - 2021-11-23 - V1
+%   Chang Liu - 2025-5-7 Find a bug that the code is adding wrong comps to
+%   the subject. Add code to check if the subject name match
+%   Chang Liu - 2025-09-30 clean up the code
 
 
-%   NJacobsen notes
-%   When timewarping data, save values as EEG.timewarp = timewarp;
-%   EEG.timewarp.medianlatency = median(timewarp.latencies(:,:));%Warping to the median latency of my 5 events
-%   By default, std_ersp will use the median of all subject's
-%   timewarp.latencies(:,:) as 'timewarpms' unless individual subject 
-%   warpto is indiciated using 'timewarpms', 'subject tw matrix'
-%   Code Designer: Jacob salminen, Chang Liu
-%
 %   Version History --> See details at the end of the script.
 %   Current Version:  v1.0.20230417.0
 %   Previous Version: n/a
 %   Summary: The following script is to identify potential brain components
 %   for the Mind-In-Motion study
 
-%{
-%## RESTORE MATLABs
-% WARNING: restores default pathing to matlab 
-restoredefaultpath;
-clc;
-close all;
-clearvars
-%}
 %% (REQUIRED SETUP 4 ALL SCRIPTS) ====================================== %%
 %- DATE TIME
 dt = datetime;
@@ -140,10 +126,7 @@ ERSP_STAT_PARAMS = struct('condstats','on',... % ['on'|'off]
     'fieldtripmethod','montecarlo',... %[('montecarlo'/'permutation')|'parametric']
     'fieldtripmcorrect','fdr',...  % ['cluster'|'fdr']
     'fieldtripnaccu',2000);
-% (07/16/2023) JS, updating mcorrect to fdr as per CL YA paper
-% (07/16/2023) JS, updating method to bootstrap as per CL YA paper
-% (07/19/2023) JS, subbaseline set to off 
-% (07/20/2023) JS, subbaseline set to on, generates different result? 
+
 SPEC_STAT_PARAMS = struct('condstats','on',... % ['on'|'off]
     'groupstats','off',... %['on'|'off']
     'method','perm',... % ['param'|'perm'|'bootstrap']
@@ -153,9 +136,7 @@ SPEC_STAT_PARAMS = struct('condstats','on',... % ['on'|'off]
     'fieldtripmethod','montecarlo',... %[('montecarlo'/'permutation')|'parametric']
     'fieldtripmcorrect','fdr',...  % ['cluster'|'fdr']
     'fieldtripnaccu',2000);
-% (07/16/2023) JS, updating mcorrect to fdr as per CL YA paper
-% (07/31/2023) JS, changing fieldtripnaccu from 2000 to 10000 to match CL's
-% pipeline although this doesn't align with her YA manuscript methods?
+
 SPEC_PARAMS = struct('freqrange',[1,200],...
     'subject','',...
     'specmode','psd',...
@@ -244,9 +225,7 @@ subjectNames    = cell(1,length([SUBJ_ITERS{:}]));
 fNames_epoch          = cell(1,length([SUBJ_ITERS{:}]));
 fPaths_epoch          = cell(1,length([SUBJ_ITERS{:}]));
 chanlocs_fPaths   = cell(1,length([SUBJ_ITERS{:}]));
-% dipfit_fPaths   = cell(1,length([SUBJ_ITERS{:}]));
 dipfit_norm_fPaths = cell(1,length([SUBJ_ITERS{:}]));
-% vol_fPaths = cell(1,length([SUBJ_ITERS{:}]));
 stack_iter = 0;
 for group_i = 1:length(SUBJ_ITERS)
     sub_idx = SUBJ_ITERS{group_i}; %1:2; %1:length(SUBJ_PICS{GROUP_INT}); %1:2;
@@ -255,28 +234,13 @@ for group_i = 1:length(SUBJ_ITERS)
     %## Assigning paths for .set, headmodel,& channel file
     for subj_i = sub_idx
         %- ICA fPaths
-        
-%         fPaths{cnt} = [load_dir filesep SUBJ_PICS{group_i}{subj_i} filesep 'ICA'];
         path_epoch = [load_dir filesep SUBJ_PICS{group_i}{subj_i} filesep 'GAIT_EPOCHED_ALL' filesep '0p250p50p751p0flatlowmedhigh'];
         if ~isempty(dir([path_epoch filesep '*_addinfo.set']))
-%             tmp = dir([fPaths{cnt} filesep '*.set']);
             tmp_epoch = dir([path_epoch filesep '*.set']);
             try
-%                 fNames{cnt} = tmp.name;
                 fNames_epoch{cnt} = tmp_epoch.name;
                 fPaths_epoch{cnt} = path_epoch;
-
-                %- Chanlocs fPaths
-        %         chanlocs_fPaths{cnt} = [DATA_DIR filesep DATA_SET filesep SUBJ_PICS{group_i}{subj_i} filesep 'EEG' filesep 'HeadScan' filesep 'CustomElectrodeLocations.mat'];
-%                 chanlocs_fPaths{cnt} = [DATA_DIR filesep DATA_SET filesep SUBJ_PICS{group_i}{subj_i} filesep 'MRI' filesep 'CustomElectrodeLocations.mat'];
-%         %         dipfit_fPaths{cnt} = [OUTSIDE_DATA_DIR filesep SUBJ_PICS{group_i}{subj_i} filesep 'head_model' filesep 'dipfit_struct.mat'];
-%     %             dipfit_norm_fPaths{cnt} = [fPaths{cnt} filesep 'dipfit_fem_norm.mat'];
-%                 dipfit_norm_fPaths{cnt} = [fPaths_epoch{cnt} filesep 'dipfit_fem_norm_ants.mat'];
-%                 %- Prints
                 fprintf('==== Subject %s Paths ====\n',SUBJ_PICS{group_i}{subj_i})
-%                 fprintf('ICA Exists: %i\n',(exist([fPaths_epoch{cnt} filesep fNames{cnt}],'file') && exist([fPaths_epoch{cnt} filesep 'W'],'file')))
-%         %         fprintf('DIPFIT Exists: %i\n',exist(dipfit_fPaths{cnt},'file'));
-%                 fprintf('Normalized DIPFIT Exists: %i\n',exist(dipfit_norm_fPaths{cnt},'file'));
             catch e
                 fprintf('==== Subject %s Paths ====\n',SUBJ_PICS{group_i}{subj_i})
                 fprintf('%s\n',getReport(e))
@@ -302,13 +266,9 @@ for group_i = 1:length(SUBJ_ITERS)
 end
 %- remove subjects without a dipole fit
 inds = logical(cellfun(@(x) exist(x,'file'),fPaths_epoch));
-% chanlocs_fPaths = chanlocs_fPaths(inds);
-% dipfit_norm_fPaths = dipfit_norm_fPaths(inds);
 fPaths_epoch = fPaths_epoch(inds);
 fNames_epoch = fNames_epoch(inds);
-% sessions = sessions(inds);
-% groups = groups(inds);
-% conditions = conditions(inds);
+
 subjectNames = subjectNames(inds);
 
 %% 

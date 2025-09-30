@@ -5,15 +5,11 @@
 % participants' comps do not match with their rejection IC.mat. Really
 % weird mistake.
 
+% Chang Liu - clean up for the published code 
+
 %Run after DIPFIT and epoching. This puts all good dipoles into a study for
 %clustering and ERSP plotting.
 
-%   NJacobsen notes
-%   When timewarping data, save values as EEG.timewarp = timewarp;
-%   EEG.timewarp.medianlatency = median(timewarp.latencies(:,:));%Warping to the median latency of my 5 events
-%   By default, std_ersp will use the median of all subject's
-%   timewarp.latencies(:,:) as 'timewarpms' unless individual subject 
-%   warpto is indiciated using 'timewarpms', 'subject tw matrix'
 %   Code Designer: Jacob salminen, Chang Liu
 %
 %   Version History --> See details at the end of the script.
@@ -24,14 +20,7 @@
 
 % sbatch /blue/dferris/jsalminen/GitHub/par_EEGProcessing/src/3_ANALYZE/MIM_OA/run_a_cluster_ics.sh
 
-%{
-%## RESTORE MATLABs
-% WARNING: restores default pathing to matlab 
-restoredefaultpath;
-clc;
-close all;
-clearvars
-%}
+
 %% (REQUIRED SETUP 4 ALL SCRIPTS) ====================================== %%
 %- DATE TIME
 dt = datetime;
@@ -39,10 +28,7 @@ dt.Format = 'MMddyyyy';
 %- VARS
 USER_NAME = 'liu.chang1'; %getenv('username');
 fprintf(1,'Current User: %s\n',USER_NAME);
-%- CD
-% cfname_path    = mfilename('fullpath');
-% cfpath = strsplit(cfname_path,filesep);
-% cd(cfpath);
+
 %% (EDIT: PATH TO YOUR GITHUB REPO) ==================================== %%
 %- GLOBAL VARS
 REPO_NAME = 'MiM_CRUNCH';
@@ -141,10 +127,7 @@ ERSP_STAT_PARAMS = struct('condstats','on',... % ['on'|'off]
     'fieldtripmethod','montecarlo',... %[('montecarlo'/'permutation')|'parametric']
     'fieldtripmcorrect','fdr',...  % ['cluster'|'fdr']
     'fieldtripnaccu',2000);
-% (07/16/2023) JS, updating mcorrect to fdr as per CL YA paper
-% (07/16/2023) JS, updating method to bootstrap as per CL YA paper
-% (07/19/2023) JS, subbaseline set to off 
-% (07/20/2023) JS, subbaseline set to on, generates different result? 
+
 SPEC_STAT_PARAMS = struct('condstats','on',... % ['on'|'off]
     'groupstats','off',... %['on'|'off']
     'method','perm',... % ['param'|'perm'|'bootstrap']
@@ -154,9 +137,7 @@ SPEC_STAT_PARAMS = struct('condstats','on',... % ['on'|'off]
     'fieldtripmethod','montecarlo',... %[('montecarlo'/'permutation')|'parametric']
     'fieldtripmcorrect','fdr',...  % ['cluster'|'fdr']
     'fieldtripnaccu',2000);
-% (07/16/2023) JS, updating mcorrect to fdr as per CL YA paper
-% (07/31/2023) JS, changing fieldtripnaccu from 2000 to 10000 to match CL's
-% pipeline although this doesn't align with her YA manuscript methods?
+
 SPEC_PARAMS = struct('freqrange',[1,200],...
     'subject','',...
     'specmode','psd',...
@@ -178,14 +159,14 @@ ERSP_PARAMS = struct('subbaseline','off',...
 % NOTE: see. statcondfieldtrip.m or std_stat.m
 COND_EVENT_CHAR = 'cond';
 %- clustering parameters
-MIN_ICS_SUBJ = [5]; %[2,3,4,5,,7,8]; % Minimal brain IC for each participant iterative clustering 
-% K_RANGE = [10,22];
+MIN_ICS_SUBJ = [5]; % Minimal brain IC for each participant iterative clustering 
+
 MAX_REPEATED_ITERATIONS = 1;
-CLUSTER_SWEEP_VALS = [10,11]; %[10,13,14,19,20]; %K_RANGE(1):K_RANGE(2);
-reduce_method = 'min_ic';
+CLUSTER_SWEEP_VALS = [10,11]; %k = [9:14] I sweep from 9 - 14 clusters
+reduce_method = 'max_icalabel'; %The way to reduce to 1 IC per person per cluster
 %***********************************************
 % DO_K_DISTPRUNE = false;
-DO_K_ICPRUNE = 1;
+DO_K_ICPRUNE = 1;% To remove people with fewer than 5 brain components 
 % DO_K_SWEEPING = false;
 %************************************************
 % (08/21/2023) JS, this currenlty doesn't do anything but take up more
@@ -202,16 +183,12 @@ CLUSTER_PARAMS = struct('algorithm','kmeans',...
 %- custom params
 % colormap_ersp = othercolor('RdYlBu11');
 % colormap_ersp = colormap_ersp(end:-1:1,:);
-%NOTE: (NJacobsen); warp each subject's tw matrix to the entire group's median event
-%latencies [1=ON], or use individual subject's median event latencies [0=OFF]. TW must be ON
-%for this setting to do anything.
+
 clustering_weights.dipoles = 1;
 clustering_weights.scalp = 0;
 clustering_weights.ersp = 0;
 clustering_weights.spec = 0;
-clustering_method = 'dipole_1'; %['dipole_',num2str(clustering_weights.dipoles),...
-%     '_scalp_',num2str(clustering_weights.scalp),'_ersp_',num2str(clustering_weights.ersp),...
-%     '_spec_',num2str(clustering_weights.spec)];
+clustering_method = 'dipole_1'; 
 STD_PRECLUST_COMMAND = {'dipoles','weight',clustering_weights.dipoles};
 %- iterative clustering parameters
 % n_iterations = 50;
@@ -289,11 +266,6 @@ ERSP_CROP_TIMES=[grandAvgWarpTo(1), grandAvgWarpTo(5)];
 fprintf('Using timewarp limits: [%0.4g,%0.4f]\n',b_lims(1),b_lims(2));
 disp(grandAvgWarpTo);
 %% (SET PARAMS)
-% STUDY = pop_statparams(STUDY,'condstats',ERSP_STAT_PARAMS.condstats,...
-%         'groupstats',ERSP_STAT_PARAMS.groupstats,...
-%         'method',ERSP_STAT_PARAMS.method,...
-%         'singletrials',ERSP_STAT_PARAMS.singletrials,'mode',ERSP_STAT_PARAMS.mode,'fieldtripalpha',ERSP_STAT_PARAMS.fieldtripalpha,...
-%         'fieldtripmethod',ERSP_STAT_PARAMS.fieldtripmethod,'fieldtripmcorrect',ERSP_STAT_PARAMS.fieldtripmcorrect,'fieldtripnaccu',ERSP_STAT_PARAMS.fieldtripnaccu);
 STUDY = pop_erspparams(STUDY,'subbaseline',ERSP_PARAMS.subbaseline,...
       'ersplim',ERSP_PARAMS.ersplim,'freqrange',ERSP_PARAMS.freqrange);
 STUDY = pop_specparams(STUDY,'subtractsubjectmean',SPEC_PARAMS.subtractsubjectmean,...
@@ -379,11 +351,6 @@ if DO_precompute
              trialinfo = std_combtrialinfo(TMP_STUDY.datasetinfo, 1);
              filebase = fullfile(filepath, EEG.subject);
              
-%              std_ersp_cl(EEG,'components',1:size(EEG.icawinv,2),'savetrials','off',...
-%                       'recompute','on','fileout', filebase, 'trialinfo', trialinfo,...
-%                       'parallel','on','cycles',ERSP_PARAMS.cycles,...
-%                       'nfreqs',length((ERSP_PARAMS.freqrange(1):ERSP_PARAMS.freqrange(2))),'ntimesout',TIMEWARP_NTIMES,...
-%                       'baseline',nan());%logersp is frequency x time x component
             [~, ~] = std_precomp(TMP_STUDY, EEG, 'comps', 'savetrials','on','recompute','on','ersp','on',...
             'erspparams',{'parallel','on','cycles',ERSP_PARAMS.cycles,'ntimesout',TIMEWARP_NTIMES,...
             'nfreqs',length((ERSP_PARAMS.freqrange(1):ERSP_PARAMS.freqrange(2))),'baseline',nan,...
@@ -676,234 +643,3 @@ if DO_K_ICPRUNE
         end
     end
 end
-%% % DO not plot
-%{
-if DO_K_ICPRUNE
-   for i = 1:length(MIN_ICS_SUBJ)
-%     for i = 1:length(MIN_ICS_SUBJ)
-        study_fName = sprintf('temp_study_rejics_%s_%i',study_fName_1,MIN_ICS_SUBJ(i));
-        tmp_dir = [save_dir filesep sprintf('icrej_%s_%i',study_fName_1,MIN_ICS_SUBJ(i))];
-        if ~exist(tmp_dir,'dir')
-            mkdir(tmp_dir)
-        end
-        if ~exist([tmp_dir filesep study_fName '.study'],'file')
-            error('ERROR. study file does not exist');
-        else
-            if ~ispc
-                [TMP_STUDY,TMP_ALLEEG] = pop_loadstudy('filename',[study_fName '_UNIX.study'],'filepath',tmp_dir);
-            else
-                [TMP_STUDY,TMP_ALLEEG] = pop_loadstudy('filename',[study_fName '.study'],'filepath',tmp_dir);
-            end
-        end
-        STUDY_GROUP_DESI = {{'subjselect',{},...
-            'variable1','cond','values1',{'flat','low','med','high'},...
-            'variable2','group','values2',unique({TMP_STUDY.datasetinfo.group})},...
-            {'subjselect',{},...
-            'variable2','cond','values1',{'0p25','0p5','0p75','1p0'},...
-            'variable2','group','values2',unique({TMP_STUDY.datasetinfo.group})}};
-        %## grab subjects for study designs
-        tmp_group_orig = cell(length(TMP_ALLEEG),1);
-        tmp_group_unif = cell(length(TMP_ALLEEG),1);
-        for subj_i = 1:length(TMP_ALLEEG)
-            tmp_group_orig{subj_i} = TMP_ALLEEG(subj_i).group;
-            tmp_group_unif{subj_i} = 'Older Adults';
-        end
-        %## ersp plot per cluster per condition
-        TMP_STUDY = pop_statparams(TMP_STUDY,'condstats',ERSP_STAT_PARAMS.condstats,...
-                'groupstats',ERSP_STAT_PARAMS.groupstats,...
-                'method',ERSP_STAT_PARAMS.method,...
-                'singletrials',ERSP_STAT_PARAMS.singletrials,'mode',ERSP_STAT_PARAMS.mode,...
-                'fieldtripalpha',ERSP_STAT_PARAMS.fieldtripalpha,...
-                'fieldtripmethod',ERSP_STAT_PARAMS.fieldtripmethod,...
-                'fieldtripmcorrect',ERSP_STAT_PARAMS.fieldtripmcorrect,'fieldtripnaccu',ERSP_STAT_PARAMS.fieldtripnaccu);
-        TMP_STUDY = pop_specparams(TMP_STUDY,'subtractsubjectmean',SPEC_PARAMS.subtractsubjectmean,...
-                'freqrange',SPEC_PARAMS.plot_freqrange,'plotmode','condensed',...
-                'plotconditions','together','ylim',SPEC_PARAMS.plot_ylim,'plotgroups','together');
-        for j = 1:length(CLUSTER_SWEEP_VALS)
-            %-
-            clust_i = CLUSTER_SWEEP_VALS(j);
-            cluster_dir = [tmp_dir filesep num2str(clust_i)];
-            cluster_update = par_load(TMP_STUDY.etc.cluster_vars(j).fpath,[]); %par_load(cluster_dir,sprintf('cluster_inf_%i.mat',clust_i));
-            %## Create Plots
-            TMP_STUDY.cluster = cluster_update;
-             %- get inds
-            [~,main_cl_inds,~,valid_clusters,~,nonzero_clusters] = eeglab_get_cluster_comps(TMP_STUDY);
-            %- clusters to plot
-            CLUSTER_PICKS = main_cl_inds(2:end); 
-            %## PLOT CLUSTER BASE INFORMATION
-            %- CLUSTER DIPOLES, TOPOS
-            mim_gen_cluster_figs(TMP_STUDY,TMP_ALLEEG,cluster_dir,...
-                'CLUSTERS_TO_PLOT',CLUSTER_PICKS);
-            %- close all figures
-            close all
-        end
-    end
-end
-%}
-%%
-%}
-%{
-parfor (i = 1:length(MIN_ICS_SUBJ),length(MIN_ICS_SUBJ))
-    study_fName = sprintf('temp_study_rejics%i',MIN_ICS_SUBJ(i));
-    tmp_dir = [save_dir filesep sprintf('icrej_%i',MIN_ICS_SUBJ(i))];
-    if ~exist(tmp_dir,'dir')
-        mkdir(tmp_dir)
-    end
-    if ~exist([tmp_dir filesep study_fName '.study'],'file')
-        error('ERROR. study file does not exist');
-    else
-        if ~ispc
-            [TMP_STUDY,TMP_ALLEEG] = pop_loadstudy('filename',[study_fName '_UNIX.study'],'filepath',tmp_dir);
-        else
-            [TMP_STUDY,TMP_ALLEEG] = pop_loadstudy('filename',[study_fName '.study'],'filepath',tmp_dir);
-        end
-    end
-    %## grab subjects for study designs
-    tmp_group_orig = cell(length(TMP_ALLEEG),1);
-    tmp_group_unif = cell(length(TMP_ALLEEG),1);
-    for subj_i = 1:length(TMP_ALLEEG)
-        tmp_group_orig{subj_i} = TMP_ALLEEG(subj_i).group;
-        tmp_group_unif{subj_i} = 'Older Adults';
-    end
-    %## ersp plot per cluster per condition
-    TMP_STUDY = pop_statparams(TMP_STUDY,'condstats',ERSP_STAT_PARAMS.condstats,...
-            'groupstats',ERSP_STAT_PARAMS.groupstats,...
-            'method',ERSP_STAT_PARAMS.method,...
-            'singletrials',ERSP_STAT_PARAMS.singletrials,'mode',ERSP_STAT_PARAMS.mode,...
-            'fieldtripalpha',ERSP_STAT_PARAMS.fieldtripalpha,...
-            'fieldtripmethod',ERSP_STAT_PARAMS.fieldtripmethod,...
-            'fieldtripmcorrect',ERSP_STAT_PARAMS.fieldtripmcorrect,'fieldtripnaccu',ERSP_STAT_PARAMS.fieldtripnaccu);
-    TMP_STUDY = pop_specparams(TMP_STUDY,'subtractsubjectmean',SPEC_PARAMS.subtractsubjectmean,...
-            'freqrange',SPEC_PARAMS.plot_freqrange,'plotmode','condensed',...
-            'plotconditions','together','ylim',SPEC_PARAMS.plot_ylim,'plotgroups','together');
-    %##
-    for j = 1:length(CLUSTER_SWEEP_VALS)
-        %-
-        clust_i = CLUSTER_SWEEP_VALS(j);
-        cluster_dir = [tmp_dir filesep num2str(clust_i)];
-        cluster_update = par_load(TMP_STUDY.etc.cluster_vars(j).fpath,[]); %par_load(cluster_dir,sprintf('cluster_inf_%i.mat',clust_i));
-        %## Create Plots
-        TMP_STUDY.cluster = cluster_update;
-        [comps_out,main_cl_inds,~,valid_cluster,~,nonzero_cluster] = eeglab_get_cluster_comps(TMP_STUDY);
-        CLUSTER_PICKS = nonzero_cluster; %valid_cluster; %main_cl_inds(2:end);
-        fprintf('Clusters with more than 50%% of subjects:'); fprintf('%i,',valid_cluster(1:end-1)); fprintf('%i',valid_cluster(end)); fprintf('\n');
-        fprintf('Main cluster numbers:'); fprintf('%i,',main_cl_inds(1:end-1)); fprintf('%i',main_cl_inds(end)); fprintf('\n');
-        cl_names = {TMP_STUDY.cluster(CLUSTER_PICKS).name};
-        for k = 1:length(CLUSTER_PICKS)
-            cl_to_plot = CLUSTER_PICKS(k);
-            fprintf('\n(k=%i, Cluster=%i) Plotting for Min ICs Per Subject of of Cluster %i\n',clust_i,cl_to_plot,MIN_ICS_SUBJ(i));
-            %-
-            % Plot scalp topographs which also need to be averaged? 
-            if ~isfield(TMP_STUDY.cluster,'topo') 
-                TMP_STUDY.cluster(1).topo = [];
-            end
-            for c = 1:length(cl_to_plot) % For each cluster requested
-                clus_i = cl_to_plot(c);
-                disp(clus_i)
-                if isempty(TMP_STUDY.cluster(clus_i).topo)
-                    % Using this custom modified code to allow taking average within participant for each cluster
-                    TMP_STUDY = std_readtopoclust_CL(TMP_STUDY,TMP_ALLEEG,clus_i);
-                end
-            end
-            %## SUBJECT SPECIFIC PER CLUSTER
-            subj_inds = TMP_STUDY.cluster(cl_to_plot).sets;
-            cl_comps = TMP_STUDY.cluster(cl_to_plot).comps;
-            for s_i = 1:length(subj_inds)
-                subj_ind = subj_inds(s_i);
-                comp_i = cl_comps(s_i);
-                subj_char = TMP_STUDY.datasetinfo(subj_ind).subject; %TMP_STUDY.subject{subj_ind};
-                subj_save_dir = [cluster_dir filesep sprintf('%i',CLUSTER_PICKS(k))];
-                if ~exist(subj_save_dir,'dir')
-                    mkdir(subj_save_dir);
-                end
-                fprintf('Making Plots for Subject %s\n...',subj_char);
-                %- (TOPOPLOT) 
-            %             set(groot, 'DefaultAxesTickLabelInterpreter', 'none')
-            %                 figure;
-                std_topoplot(TMP_STUDY,TMP_ALLEEG,'clusters',cl_to_plot,'comps',s_i);
-                fig_i = get(groot,'CurrentFigure');
-                set(fig_i,'position',[16 100 500 350],'color','w');
-                drawnow;
-                for c = 2:length(fig_i.Children)
-            %                 set(fig_i.Children(c).Title,'Interpreter','none');
-                    fig_i.Children(c).Title.Interpreter = 'none';
-                    fig_i.Children(c).TitleFontSizeMultiplier = 1.4;
-                end
-                saveas(fig_i,[subj_save_dir filesep sprintf('%s_topo_ic%i.jpg',subj_char,comp_i)]);
-                %- (DIPOLE) Plot dipole clusters 
-                TMP_STUDY.etc.dipparams.centrline = 'off';
-            %                     std_dipplot_CL(TMP_STUDY,TMP_ALLEEG,'clusters',cl_to_plot,'comps',s_i,...
-            %                         'figure','off','mode','apart','spheres','off','projlines','off');
-                figure;
-                tmp = linspecer(2);
-                options = {'projlines','off',...
-                    'axistight','off',...
-                    'projimg','off',...
-                    'spheres','off',...
-                    'dipolelength',0,...
-                    'density','off',...
-                    'gui','off',...
-                    'cornermri','on',...
-                    'mri',TMP_ALLEEG(subj_ind).dipfit.mrifile,...
-                    'coordformat',TMP_ALLEEG(subj_ind).dipfit.coordformat,...
-                    'color',{tmp(1,:),tmp(2,:)},...
-                    'meshdata',TMP_ALLEEG(subj_ind).dipfit.hdmfile};
-                dip1 = TMP_STUDY.cluster(cl_to_plot).dipole;
-                dip2 = [];
-                dip2.posxyz = TMP_STUDY.cluster(cl_to_plot).all_diplocs(s_i,:);
-                dip2.momxyz = [0,0,0];
-                dip2.rv = TMP_STUDY.cluster(cl_to_plot).residual_variances(s_i);
-                dipplot([dip1,dip2],options{:});
-                fig_i = get(groot,'CurrentFigure');
-                set(fig_i,'position',[16 582 300 350],'color','w')
-                set(fig_i, 'DefaultAxesTickLabelInterpreter', 'none')
-                camzoom(1.2^2);
-                saveas(fig_i,[subj_save_dir filesep sprintf('%s_dip_top_ic%i.jpg',subj_char,comp_i)]);
-                view([45,0,0])
-                saveas(fig_i,[subj_save_dir filesep sprintf('%s_dip_coronal_ic%i.jpg',subj_char,comp_i)]);
-                view([0,-45,0])
-                saveas(fig_i,[subj_save_dir filesep sprintf('%s_dip_sagittal_ic%i.jpg',subj_char,comp_i)]);
-                %- (SPEC) Spec plot conds for des_i and all groups
-                fprintf('Plotting Spectograms for Conditions...\n');
-                for ii = 1:length(TMP_ALLEEG)
-                    TMP_ALLEEG(ii).group = tmp_group_unif{ii};
-                    TMP_STUDY.datasetinfo(ii).group = tmp_group_unif{ii};
-                end
-                for des_i = 1:length(COND_DESIGNS)
-                    [TMP_STUDY] = std_makedesign(TMP_STUDY,TMP_ALLEEG,des_i,...
-                            'subjselect', {subj_char},...
-                            'variable1',COND_EVENT_CHAR,...
-                            'values1',COND_DESIGNS{des_i});
-                    std_specplot(TMP_STUDY,TMP_ALLEEG,'clusters',cl_to_plot,'comps',s_i,...
-                        'freqrange',SPEC_PARAMS.plot_freqrange,'plotmode','condensed','design',des_i);
-                    fig_i = get(groot,'CurrentFigure');
-                    fig_i.Position = [16 582 420 360];
-                    %- set figure line colors
-                    cc = linspecer(length(COND_DESIGNS{des_i}));
-                    iter = 1;
-                    for d = 1:length(fig_i.Children(2).Children)
-                        %- pane 1
-                        set(fig_i.Children(2).Children(d),'LineWidth',1.5);
-                        set(fig_i.Children(2).Children(d),'Color',horzcat(cc(iter,:),0.6));
-
-                        if iter == size(cc,1)
-                            iter = 1;
-                        else
-                            iter = iter + 1;
-                        end                
-                    end
-                    set(fig_i.Children(2),'FontSize',13)
-            %                     set(fig_i.Children(3),'FontSize',13)
-                    set(fig_i.Children(2),'Position',[0.20,0.20,0.7,0.7]) %Default:[0.26,0.26,0.54,0.51]; Position::[left margin, lower margin, right margin, upper margin]
-            %                     set(fig_i.Children(3),'Position',[0.20,0.20-0.0255,0.7,0.0255]) %Default:[0.26,0.2345,0.54,0.0255]
-                    set(fig_i.Children(1),'Location','northeast') %reset Legend
-                    drawnow;
-                    saveas(fig_i,[subj_save_dir filesep sprintf('%s_psd_des%i_ic%i.jpg',subj_char,des_i,comp_i)]);
-                end
-                close all
-            end
-        end
-    end
-          
-end
-%}

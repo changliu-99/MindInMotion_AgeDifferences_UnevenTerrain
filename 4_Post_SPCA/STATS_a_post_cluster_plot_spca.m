@@ -1,5 +1,7 @@
-% Calculate peak-to-peak ERSP, and perform statistical analsysis of ERSP results
-% Chang Liu - 20240614
+%   Project Title: MiM Age difference paper
+%   Calculate peak-to-peak ERSP, and perform statistical analsysis of ERSP results
+%   Chang Liu - 20240614
+%   Chang Liu - clean up code 20250930
 
 
 clear all;close all
@@ -11,10 +13,7 @@ dt.Format = 'MMddyyyy';
 %- VARS
 USER_NAME = 'liu.chang1'; %getenv('username');
 fprintf(1,'Current User: %s\n',USER_NAME);
-%- CD
-% cfname_path    = mfilename('fullpath');
-% cfpath = strsplit(cfname_path,filesep);
-% cd(cfpath);
+
 %% (EDIT: PATH TO YOUR GITHUB REPO) ==================================== %%
 %- GLOBAL VARS
 REPO_NAME = 'MiM_CRUNCH';
@@ -113,10 +112,7 @@ ERSP_STAT_PARAMS = struct('condstats','on',... % ['on'|'off]
     'fieldtripmethod','montecarlo',... %[('montecarlo'/'permutation')|'parametric']
     'fieldtripmcorrect','fdr',...  % ['cluster'|'fdr']
     'fieldtripnaccu',2000);
-% (07/16/2023) JS, updating mcorrect to fdr as per CL YA paper
-% (07/16/2023) JS, updating method to bootstrap as per CL YA paper
-% (07/19/2023) JS, subbaseline set to off 
-% (07/20/2023) JS, subbaseline set to on, generates different result? 
+
 SPEC_STAT_PARAMS = struct('condstats','on',... % ['on'|'off]
     'groupstats','off',... %['on'|'off']
     'method','perm',... % ['param'|'perm'|'bootstrap']
@@ -126,9 +122,7 @@ SPEC_STAT_PARAMS = struct('condstats','on',... % ['on'|'off]
     'fieldtripmethod','montecarlo',... %[('montecarlo'/'permutation')|'parametric']
     'fieldtripmcorrect','fdr',...  % ['cluster'|'fdr']
     'fieldtripnaccu',2000);
-% (07/16/2023) JS, updating mcorrect to fdr as per CL YA paper
-% (07/31/2023) JS, changing fieldtripnaccu from 2000 to 10000 to match CL's
-% pipeline although this doesn't align with her YA manuscript methods?
+
 SPEC_PARAMS = struct('freqrange',[1,200],...
     'subject','',...
     'specmode','psd',...
@@ -178,9 +172,7 @@ clustering_weights.dipoles = 1;
 clustering_weights.scalp = 0;
 clustering_weights.ersp = 0;
 clustering_weights.spec = 0;
-clustering_method = 'dipole_1'; %['dipole_',num2str(clustering_weights.dipoles),...
-%     '_scalp_',num2str(clustering_weights.scalp),'_ersp_',num2str(clustering_weights.ersp),...
-%     '_spec_',num2str(clustering_weights.spec)];
+clustering_method = 'dipole_1'; 
 STD_PRECLUST_COMMAND = {'dipoles','weight',clustering_weights.dipoles};
 %- iterative clustering parameters
 % n_iterations = 50;
@@ -268,17 +260,6 @@ load(fullfile(load_dir,'H1004','GAIT_EPOCHED_ALL','0p250p50p751p0flatlowmedhigh'
 warpingvalues = round(parameters{find(strcmp(parameters,'timewarpms'))+1});
 group = 2;
 %%
-% old reduction method 
-% if CLUSTER_SELECT == 13
-%     cluster_label = {'SuppMotor','Cingulate','SMA','Occipital','Caudate','SMA','Cingulate','SuppMotor','PP','PP'};
-%     climMax = [0.5 0.5 1.2 0.5 0.5 1.2 0.5 0.5 1 1];
-% elseif CLUSTER_SELECT == 12
-%     cluster_label = {'SMA','Cingulate','PP','Occipital','SuppMotor','SMA','Cingulate','Cingulate','PP','Occipital'};
-%     climMax = [1 0.5 0.5 0.5 0.5 1 0.5 0.5 0.5 1];
-% elseif CLUSTER_SELECT == 11
-%     cluster_label = {'Occipital','','SuppMotor','Cingulate','PP','SuppMotor','PP','SMA','SMA'};
-%     climMax = [0.5 0.5 0.5 0.5 1 0.5 1 1 1];
-% end
 
 switch reduce_method
     case 'max_iclabel'
@@ -435,11 +416,6 @@ keyboard
 %% Paper figure: Violin plot of peak to peak ERSP
 data_table = p2p_ERSP_table_correctMean_sum;
 outcome_measure = {'p2p_ersp'};
-% data_table = swing_ERSP_table_all_sum;
-% outcome_measure = 'LTO_LHS_ERSP';% - right sensorimotor 13
-% outcome_measure = 'LTO_RTO_ERSP';% - right sensorimotor 13
-% outcome_measure = 'RTO_RHS_ERSP';% - left sensorimotor 11
-% outcome_measure = 'RTO_LTO_ERSP';% - left sensorimotor 11
 
 band = {'\theta','\alpha','\beta'};
 title_plot = {'\theta','\alpha','\beta'}
@@ -457,25 +433,14 @@ for k = valid_clusters
             fig = subplot(3,1,p);
             hold on;
             data_plot = data_table(data_table.cluster == k & strcmp(data_table.band,band{j}),:);
-            % there is a huge outlier for k = 8 at theta band,remove that
-            % person
-%             if k == 8
-%                 idx1 = find(data_plot.p2p_ersp > 5.52); %mean+-5std;
-%                 data_plot.p2p_ersp(idx1) = NaN;
-%                 data_plot.min_ersp(idx1) = NaN;
-%                 data_plot.max_ersp(idx1) = NaN;
-%             end
-            
+
             hold on;
             f1 = violinplot(data_plot.(outcome_measure{i})(data_plot.group == 1),double(data_plot.cond(data_plot.group == 1)),...
                 'ViolinColor',{color_dark(:,:)},'ViolinAlpha',{0.2 0.3},...
                 'MarkerSize',10,'EdgeColor',[0.5 0.5 0.5],'DataStyle', 'scatter',...
                 'width',0.3,'HalfViolin','left',...
                 'ShowMean', false,'BoxColor',[0 0 0]);
-    %         for cond = 1:4
-    %             mean_f1(cond) = median(data_plot.p2p_ersp(data_plot.group == 1 & data_plot.cond == cond));
-    %             mean_f2(cond) = median(data_plot.p2p_ersp(data_plot.group == 2 & data_plot.cond == cond));
-    %         end
+ 
             dataObjs = findobj( fig,'-property','YData');
             for ii = 1:length(dataObjs)
                 dataObjs(ii).XData = dataObjs(ii).XData -0.2;
@@ -488,10 +453,7 @@ for k = valid_clusters
     %             ylim([0 3]);
             if i == 1;ylabel(sprintf('%s Power(dB)',title_plot{j}),'fontweight','bold');end
 
-    %         plot(unique(double(data_plot.cond(data_plot.group == 1)))-0.2,mean_f1,'-','color',[174,1,126]/255,'linewidth',1.5);
-    %         plot(unique(double(data_plot.cond(data_plot.group == 2))),mean_f2,'-','color',[8,81,156]/255,'linewidth',1.5);
-            % axis padded
-            fig_i = get(groot,'CurrentFigure');
+             fig_i = get(groot,'CurrentFigure');
             % fig_i.Position = [200,200,1820,920];
             box off
             if j == 1;title(ylabel_name{i});end
@@ -510,17 +472,11 @@ for k = valid_clusters
         data_plot.group = categorical(data_plot.group);
         data_plot.cond = categorical(data_plot.cond);
         
-%         data_plot.group = double(data_plot.group);
-%         data_plot.cond = double(data_plot.cond);
-
 %!!!!!%%%%%%%%%%%%%%%%%%%
 % ANOVA result with interaction term does not match with R !! USE R
 % instead!
 %%%%%%%%%%%%%%%%%%%%%%%%%
-%         data_plot.subID = categorical(data_plot.subID);
-%         lm_terrain_p2p = fitlme(data_plot,'p2p_ersp ~ 1+group+cond+group:cond+(1|subjectName)', 'FitMethod','REML');
-%         anova(lm_terrain_p2p,'dfmethod','satterthwaite')
-%         keyboard
+
     end
     savedir = fullfile(cluster_dir,'ERSP_Plots',['Cluster_',num2str(k)]);
     exportgraphics(gcf,fullfile(savedir,['cluster_',num2str(k),'_','p2p_ERSP_violin','.tif']))
@@ -579,17 +535,6 @@ for k = valid_clusters
         exportgraphics(gcf,config.save_filepath);
         exportgraphics(gcf,config.save_pdf_filepath);
     end         
-%         % Common baseline subtraction
-%         % How's common baseline subtraction work? Does it subtract the average
-%         % for each person or just all
-%         % https://sccn.ucsd.edu/pipermail/eeglablist/2012/004628.html
-%         common baseline issue
-%         config.save_filepath = fullfile(cluster_dir,'ERSP_Plots',['Cluster_',num2str(k)],'allersp_spca_common_young.jpg');
-%         PerformBaselineCorrect_common(allersp_ERSP_reorder_group(1:4,1),SPCA_results.times,SPCA_results.logfreqs,config)
-% 
-%         config.save_filepath = fullfile(cluster_dir,'ERSP_Plots',['Cluster_',num2str(k)],'allersp_spca_common_old.jpg');
-%         PerformBaselineCorrect_common(allersp_ERSP_reorder_group(1:4,2),SPCA_results.times,SPCA_results.logfreqs,config)
-
         
         %% -- Common baseline subtract - Cond only
     performCorrect_common = 1;
@@ -694,9 +639,6 @@ for k = valid_clusters(1)
     config.save_filepath =  fullfile(cluster_dir,'ERSP_Plots',['Cluster_',num2str(k)],['allersp_spca_common_groupcond','.jpg']);
     FIGURE_performBaselineCorrect_common(allerspdata_crop,SPCA_results.times,SPCA_results.logfreqs,pcond_ersp_crop,pgroup_ersp_crop,pinter_ersp_crop,config)
     
-%     mkdir(fullfile('J:\ChangLiu\UFL Dropbox\Chang Liu\0.0 Writing_postdoc\MiM_CRUNCH\Figures',['Cluster_',num2str(k)]));
-%     config.save_filepath_dropbox = fullfile('J:\ChangLiu\UFL Dropbox\Chang Liu\0.0 Writing_postdoc\MiM_CRUNCH\Figures',['Cluster_',num2str(k)],['allersp_spca_common_groupcond','.pdf']);
-%     exportgraphics(gcf,config.save_filepath_dropbox);
     config.save_filepath_M = fullfile(cluster_dir,'ERSP_Plots',['Cluster_',num2str(k)],['allersp_spca_common_groupcond','.pdf']);
     exportgraphics(gcf,config.save_filepath_M);
 end
@@ -708,9 +650,6 @@ for k = valid_clusters(1)
     config.save_filepath =  fullfile(cluster_dir,'ERSP_Plots',['Cluster_',num2str(k)],['allersp_spca_common_groupcond_tworow','.jpg']);
     FIGURE_performBaselineCorrect_common_tworow(allerspdata_crop,SPCA_results.times,SPCA_results.logfreqs,pcond_ersp_crop,pgroup_ersp_crop,pinter_ersp_crop,config)
     
-%     mkdir(fullfile('J:\ChangLiu\UFL Dropbox\Chang Liu\0.0 Writing_postdoc\MiM_CRUNCH\Figures',['Cluster_',num2str(k)]));
-%     config.save_filepath_dropbox = fullfile('J:\ChangLiu\UFL Dropbox\Chang Liu\0.0 Writing_postdoc\MiM_CRUNCH\Figures',['Cluster_',num2str(k)],['allersp_spca_common_groupcond_tworow','.pdf']);
-%     exportgraphics(gcf,config.save_filepath_dropbox);
     config.save_filepath_M = fullfile(cluster_dir,'ERSP_Plots',['Cluster_',num2str(k)],['allersp_spca_common_groupcond_tworow','.pdf']);
     exportgraphics(gcf,config.save_filepath_M);
 end

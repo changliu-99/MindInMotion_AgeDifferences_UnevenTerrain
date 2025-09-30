@@ -1,7 +1,19 @@
-% Script to gather PSD, ERSP outcome after SPCA and clustering 
-% Run fooof analysis on PSDs after cleaned with sPCA
-
 % Chang Liu - 20240311
+%   Project Title: MiM Age difference paper
+%   
+%   Script to gather PSD, ERSP outcome after SPCA and clustering 
+%   Run fooof analysis on PSDs after cleaned with sPCA
+%
+%   Code Designer: Jacob salminen and Chang Liu
+%
+%   Version History --> See details at the end of the script.
+%   Current Version:  v1.0.20220103.0
+%   Previous Version: n/a
+%   Summary: 
+
+% Chang Liu - 20240311 
+% Chang Liu Done - clean-up 20250930
+
 
 clear all;close all
 
@@ -114,10 +126,7 @@ ERSP_STAT_PARAMS = struct('condstats','on',... % ['on'|'off]
     'fieldtripmethod','montecarlo',... %[('montecarlo'/'permutation')|'parametric']
     'fieldtripmcorrect','fdr',...  % ['cluster'|'fdr']
     'fieldtripnaccu',2000);
-% (07/16/2023) JS, updating mcorrect to fdr as per CL YA paper
-% (07/16/2023) JS, updating method to bootstrap as per CL YA paper
-% (07/19/2023) JS, subbaseline set to off 
-% (07/20/2023) JS, subbaseline set to on, generates different result? 
+
 SPEC_STAT_PARAMS = struct('condstats','on',... % ['on'|'off]
     'groupstats','off',... %['on'|'off']
     'method','perm',... % ['param'|'perm'|'bootstrap']
@@ -127,9 +136,7 @@ SPEC_STAT_PARAMS = struct('condstats','on',... % ['on'|'off]
     'fieldtripmethod','montecarlo',... %[('montecarlo'/'permutation')|'parametric']
     'fieldtripmcorrect','fdr',...  % ['cluster'|'fdr']
     'fieldtripnaccu',2000);
-% (07/16/2023) JS, updating mcorrect to fdr as per CL YA paper
-% (07/31/2023) JS, changing fieldtripnaccu from 2000 to 10000 to match CL's
-% pipeline although this doesn't align with her YA manuscript methods?
+
 SPEC_PARAMS = struct('freqrange',[1,200],...
     'subject','',...
     'specmode','psd',...
@@ -203,17 +210,7 @@ load_dir = [STUDIES_DIR filesep sprintf('%s',dt)];
 if ~exist(save_dir,'dir')
     mkdir(save_dir);
 end
-%% ===================================================================== %%
-%## LOAD STUDIES && ALLEEGS
-%- Create STUDY & ALLEEG structs
-% if ~ispc
-%     [STUDY,ALLEEG] = pop_loadstudy('filename',[study_fName_1 '.study'],'filepath',load_dir);
-% else
-%     [STUDY,ALLEEG] = pop_loadstudy('filename',[study_fName_1 '.study'],'filepath',load_dir);
-% end
-% 
-% CLUSTER_PARAMS.filename = STUDY.filename;
-% CLUSTER_PARAMS.filepath = STUDY.filepath;
+
 
 %% Use the rest study  
 study_fName = sprintf('temp_study_rejics_spca_%s_%i',study_fName_1, MIN_ICS_SUBJ);
@@ -314,12 +311,10 @@ TMP_STUDY = std_makedesign(TMP_STUDY, TMP_ALLEEG, 1,'variable1','cond','values1'
 
 % TMP_STUDY_gait = std_makedesign(STUDY, ALLEEG, 2, 'variable1','cond','values1', {'0p25','0p5','0p75','1p0'},'variable2','group','values1',unique({TMP_STUDY_gait.datasetinfo.group}));
 
-%% Compute scalp on
-[~, ~] = std_precomp(TMP_STUDY, TMP_ALLEEG,...
-                        'components',...
-                        'spec','off',...
-                        'scalp','on',...
-                        'recompute','off');
+reduce_method = 'max_iclabel';
+if isunix;addpath '/blue/dferris/liu.chang1/scripts/MiM_HY/_common/std_plot_funs/';end
+
+
 
 %% Check dataset to see if it has all conditions
 condition_store = cell(length(TMP_ALLEEG_gait),8);
@@ -328,9 +323,7 @@ for i = 1:length(TMP_ALLEEG_gait)
 end
 
 %% Generate the cluster topography
-reduce_method = 'max_iclabel';
-if isunix;addpath '/blue/dferris/liu.chang1/scripts/MiM_HY/_common/std_plot_funs/';end
-
+% Must run this to load correct clusters 
 for j = 3%:length(CLUSTER_SWEEP_VALS)% cluster = 12
     %-
     fprintf('Generating the cluster = %s \n',num2str(CLUSTER_SWEEP_VALS(j)));
@@ -368,9 +361,9 @@ for j = 3%:length(CLUSTER_SWEEP_VALS)% cluster = 12
     end
     mim_gen_cluster_figs_CL(TMP_STUDY,TMP_ALLEEG,cluster_dir,...
         'CLUSTERS_TO_PLOT', valid_clusters,...
-        'DO_SINGLE_CLUSTER_PLOTS',1,...
-        'DO_SINGLE_CLUSTER_PLOTS_Group',1,...
-        'DO_GROUP_DIPOLE',1);
+        'DO_SINGLE_CLUSTER_PLOTS',0,...
+        'DO_SINGLE_CLUSTER_PLOTS_Group',0,...
+        'DO_GROUP_DIPOLE',0);
 %     
 %     % get the aggregate anatomical label for one cluster
 %     [atlas_names] = aggregate_anatomical_labels(cluster_update.SAVEVAR,16);
@@ -383,15 +376,23 @@ for j = 3%:length(CLUSTER_SWEEP_VALS)% cluster = 12
 end
 
 % CLUSTER_SELECT = input('What cluster do you choose for analysis?  ');
-CLUSTER_SELECT = CLUSTER_SWEEP_VALS(j);
+CLUSTER_SELECT = CLUSTER_SWEEP_VALS(3);
 
 fprintf('Processing all for %s \n',num2str(CLUSTER_SELECT));
+keyboard
+%% Compute scalp on
+[~, ~] = std_precomp(TMP_STUDY, TMP_ALLEEG,...
+                        'components',...
+                        'spec','off',...
+                        'scalp','on',...
+                        'recompute','off');
+
 %% ====== Gather ERSP for each cluster
 %% Gather ERSP for each cluster
 gatherERSP = 1;
 if gatherERSP
     group_list = {TMP_STUDY.datasetinfo(:).group};
-    for i = valid_clusters
+    for i = [3 7 8 5]%valid_clusters
         tic
         fprintf('\n grabbing ersp for %s \n',num2str(i));
         sub_cl = TMP_STUDY.cluster(i).sets;
@@ -408,6 +409,7 @@ if gatherERSP
                 fprintf('. %s',num2str(sub_comp(n)));
                 [ERSP_corr{cond,1}(:,j,:)] = gaitERSP_cond.ERSP_corr(:,sub_comp(n),:);
                 [ERSP_GPM{cond,1}(:,j,:)] = gaitERSP_cond.GPM(:,sub_comp(n),:);
+                [ERSP_PSC1{cond,1}(:,j,:)] = gaitERSP_cond.PSC1(:,sub_comp(n),:);% Added by CL - 9/10/2025
             end
             j = j + 1;
         end
@@ -425,6 +427,7 @@ if gatherERSP
         SPCA_results.ERSP_GPM = ERSP_GPM;
         SPCA_results.cluster = i;
         SPCA_results.group_store = group_store;
+        SPCA_results.PSC1 = ERSP_PSC1;% Added by CL - 9/10/2025
 
         clust_i = CLUSTER_SELECT;
         cluster_dir = [tmp_dir filesep num2str(clust_i) filesep reduce_method];
@@ -432,18 +435,19 @@ if gatherERSP
         if ~exist(fullfile(cluster_dir,'ERSP_Plots',['Cluster_',num2str(i)]))
             mkdir(fullfile(cluster_dir,'ERSP_Plots',['Cluster_',num2str(i)]))
         end
-        save(fullfile(cluster_dir,'ERSP_Plots',['Cluster_',num2str(i)],'SPCA_results.mat'),'SPCA_results');
+        save(fullfile(cluster_dir,'ERSP_Plots',['Cluster_',num2str(i)],'SPCA_results_20250910.mat'),'SPCA_results');%Note the 20250910 version is for reviewer's comments on SPCA
         clear SPCA_results ERSP_GPM ERSP_corr ERSP_GPM_corr
         toc
     end
-% ------- plot GPM corr and non-corr GPM
+%% -- plot GPM corr and non-corr GPM
+load_ersp_spca = fullfile(load_dir, 'H1004','GAIT_EPOCHED_ALL','0p250p50p751p0flatlowmedhigh',['gaitERSP_','H1004','_','flat']);
+load(load_ersp_spca)
 load(fullfile(load_dir,'H1004','GAIT_EPOCHED_ALL','0p250p50p751p0flatlowmedhigh','H1004.icatimef'),'-mat','parameters');
 warpingvalues = round(parameters{find(strcmp(parameters,'timewarpms'))+1});
 group = 2;
-close all;
-for k = 4%[3:14]
+for k = 10%[3:14]
     f1 = figure('color','w','position',[100 100 1200 600]);
-    load(fullfile(cluster_dir,'ERSP_Plots',['Cluster_',num2str(k)],'SPCA_results.mat'));
+    load(fullfile(cluster_dir,'ERSP_Plots',['Cluster_',num2str(k)],'SPCA_results_20250910.mat'));
     for cond = 1:length(terrain_trials)-1
         subplot(2,4,cond)
         tftopo(squeeze(mean(SPCA_results.ERSP_GPM_corr{cond,1}(:,SPCA_results.group_store==group,:),2)),gaitERSP_cond.times,gaitERSP_cond.logfreqs,...
@@ -502,7 +506,7 @@ end
     for k = valid_clusters
 
         config.k = k;
-        %% LOAD SPCA result
+        % LOAD ERSP SPCA result
         load(fullfile(cluster_dir,'ERSP_Plots',['Cluster_',num2str(k)],'SPCA_results.mat'));
         sub_ID = TMP_STUDY.datasetinfo(1).subject;%use the datasetinfo instead
         load_ersp_spca = fullfile(load_dir, sub_ID,'GAIT_EPOCHED_ALL','0p250p50p751p0flatlowmedhigh',['gaitERSP_',sub_ID,'_','flat']);
@@ -552,92 +556,12 @@ end
     
 end
 %% ========= Gather SPEC information
-%% Sanity check for SPCA 
-% For one example participant, 
-plot_supplementary_material = 1;
-if plot_supplementary_material
-    sub_ID = 'H1007'; % H1004
-    j = 1;
-    load_spec = fullfile(load_dir, sub_ID,'GAIT_EPOCHED_ALL','0p250p50p751p0flatlowmedhigh',['gaitSPEC_',sub_ID,'.mat']); 
-    load(load_spec);
-    load_rest = fullfile(load_dir, sub_ID,'SLIDING_EPOCHED_ALL','rest',['restSPEC_',sub_ID,'.mat']);
-    load(load_rest);
-    SPEC_GPM_corr = cell(4,1);
-    % load the IC label result
-    load(fullfile(load_dir,sub_ID,'GAIT_EPOCHED_ALL','0p250p50p751p0flatlowmedhigh','reject_ic',[sub_ID,'_ICRej.mat']));
-    muscle_ic = reject_struct.IC_all_muscle >= 2;
-    brain_ic = reject_struct.IC_all_brain >= 8;
-    % plot the average cleaning result of muscle component
-    figure('color','white');
-    subplot(1,2,1);hold on;
-    title('Muscle')
-    x = 0:250;
-    y = double(mean(squeeze(gaitSPEC.logspec(1,muscle_ic,:))));
-    E = double(std(squeeze(gaitSPEC.logspec(1,muscle_ic,:))));
-    JackKnife_sung(x,y',E',color.Blue,color.lightBlue);
-    y2 = double(mean(squeeze(gaitSPEC.gaitSPEC_subRest(1,muscle_ic,:))));
-    E2 = double(std(squeeze(gaitSPEC.gaitSPEC_subRest(1,muscle_ic,:))));
-    JackKnife_sung(x,y2',E2',color.Red,color.lightRed);
-    y2 = double(mean(squeeze(gaitSPEC.SPEC_corr(1,muscle_ic,:))));
-    E2 = double(std(squeeze(gaitSPEC.SPEC_corr(1,muscle_ic,:))));
-    JackKnife_sung(x,y2',E2',color.Green,color.lightGreen);
-    y3 = double(mean(squeeze(gaitSPEC.SPEC_corr(1,muscle_ic,:))+squeeze(restSPEC.logspec(1,muscle_ic,:))));
-    E3 = double(std(squeeze(gaitSPEC.SPEC_corr(1,muscle_ic,:))+squeeze(restSPEC.logspec(1,muscle_ic,:))));
-    JackKnife_sung(x,y3',E3',color.Orange,color.Yellow);
-    legend('','Raw','','remove rest','','corrected','','corrected+rest')
-    xlim([3 250]);
-    xlabel('Frequency(Hz)');ylabel('log Power (dB)');
-    set(gca,'fontsize',12);
-
-    subplot(1,2,2);hold on;
-    title('Brain')
-    x = 0:250;
-    y = double(mean(squeeze(gaitSPEC.logspec(1,brain_ic,:))));
-    E = double(std(squeeze(gaitSPEC.logspec(1,brain_ic,:))));
-    JackKnife_sung(x,y',E',color.Blue,color.lightBlue);
-    y2 = double(mean(squeeze(gaitSPEC.gaitSPEC_subRest(1,brain_ic,:))));
-    E2 = double(std(squeeze(gaitSPEC.gaitSPEC_subRest(1,brain_ic,:))));
-    JackKnife_sung(x,y2',E2',color.Red,color.lightRed);
-    y2 = double(mean(squeeze(gaitSPEC.SPEC_corr(1,brain_ic,:))));
-    E2 = double(std(squeeze(gaitSPEC.SPEC_corr(1,brain_ic,:))));
-    JackKnife_sung(x,y2',E2',color.Green,color.lightGreen);
-    y3 = double(mean(squeeze(gaitSPEC.SPEC_corr(1,brain_ic,:))+squeeze(restSPEC.logspec(1,brain_ic,:))));
-    E3 = double(std(squeeze(gaitSPEC.SPEC_corr(1,brain_ic,:))+squeeze(restSPEC.logspec(1,brain_ic,:))));
-    JackKnife_sung(x,y3',E3',color.Orange,color.Yellow);
-    legend('','Raw','','remove rest','','corrected','','corrected+rest')
-    xlabel('Frequency(Hz)');ylabel('log Power (dB)');
-    xlim([3 250]);
-    set(gca,'fontsize',12);
-
-    % plot all brain ics
-    figure();
-    plot(x,squeeze(gaitSPEC.gaitSPEC_subRest(1,:,:)))
-
-    figure();
-    bar(x,gaitSPEC.V(1,:))
-
-    figure();
-    plot(x,squeeze(gaitSPEC.PSC1(1,:,:)))
-
-    load_spec_spca = fullfile(load_dir, sub_ID,'GAIT_EPOCHED_ALL','0p250p50p751p0flatlowmedhigh',['gaitSPEC_',sub_ID,'_','med']); 
-    load(load_spec_spca);
-    [SPEC_corr, GPM_corr, PSC1,allPSC] = specPCAdenoising_CL(gaitSPEC_cond.gaitSPEC_subRest, gaitSPEC.V);
-
-    figure();
-    subplot(1,2,1)
-    plot(x,squeeze(allPSC{1}(1,brain_ic,:)));
-    subplot(1,2,2)
-    plot(x,squeeze(allPSC{2}));
-
-    figure()
-    imagesc(x,x,squeeze(gaitSPEC.V(:,1,:)))
-end
-%% Gather SPEC
+%% Gather SPEC for each cluster
 gatherSPEC = 1;
 if gatherSPEC
     all_cond_trials = {'flat','low','med','high','0p25','0p5','0p75','1p0'};
     group_list = {TMP_STUDY.datasetinfo(:).group};
-    for i = valid_clusters
+    for i = 7%valid_clusters
         clear SPCA_results_spec SPEC_corr SPEC_corr_addRest SPEC_raw PSC1 SPEC_subRest SPEC_rest
         fprintf('\n grabbing ersp for %s \n',num2str(i));
         sub_cl = TMP_STUDY.cluster(i).sets;
@@ -662,14 +586,14 @@ if gatherSPEC
 
                     %ERSP_spca = time x comp x freqs
                     fprintf('.');
-                    [SPEC_corr{cond,1}(:,j,:)] = gaitSPEC_cond.SPEC_corr(:,sub_comp(n),:);
+                    [SPEC_corr{cond,1}(:,j,:)] = gaitSPEC_cond.SPEC_corr(:,sub_comp(n),:);%corrected
 
         %             figure();plot(squeeze(gaitSPEC_cond.SPEC_corr(:,sub_comp(n),:)),'r');hold on;plot(squeeze(gaitSPEC_cond.gaitSPEC_subRest(:,sub_comp(n),:)),'b');legend('corrected','raw');
                     [SPEC_corr_addRest{cond,1}(:,j,:)] = gaitSPEC_cond.SPEC_corr(:,sub_comp(n),:) + restSPEC.logspec(:,sub_comp(n),:);
 
                     [SPEC_raw{cond,1}(:,j,:)] = gaitSPEC_cond.logspec(:,sub_comp(n),:);
 
-                    [PSC1{cond,1}(:,j,:)] = gaitSPEC_cond.PSC1(:,sub_comp(n),:);
+                    [PSC1{cond,1}(:,j,:)] = gaitSPEC_cond.PSC1(:,sub_comp(n),:);%data that is removed %PSC1 is the data that is removed
 
                     [SPEC_subRest{cond,1}(:,j,:)] = gaitSPEC_cond.gaitSPEC_subRest(:,sub_comp(n),:);
                 catch 
@@ -735,8 +659,142 @@ if gatherSPEC
     end
 end
 if isunix;exit;end
+%% (Supplementary material) Sanity check for SPCA  for one participant
+% For one example participant, 
+plot_supplementary_material = 1;
+if plot_supplementary_material
+    color.Purple = [136,86,167]/255;color.lightPurple = [188,189,220]/255;
+    sub_ID = 'H1004'; % H1004
+    j = 1;
+    load_spec = fullfile(load_dir, sub_ID,'GAIT_EPOCHED_ALL','0p250p50p751p0flatlowmedhigh',['gaitSPEC_',sub_ID,'.mat']); 
+    load(load_spec);
+    load_rest = fullfile(load_dir, sub_ID,'SLIDING_EPOCHED_ALL','rest',['restSPEC_',sub_ID,'.mat']);
+    load(load_rest);
+    SPEC_GPM_corr = cell(4,1);
+    % load the IC label result
+    load(fullfile(load_dir,sub_ID,'GAIT_EPOCHED_ALL','0p250p50p751p0flatlowmedhigh','reject_ic',[sub_ID,'_ICRej.mat']));
+    muscle_ic = reject_struct.IC_all_muscle >= 2;
+    brain_ic = reject_struct.IC_all_brain >= 8;
+    % plot the average cleaning result of muscle component
+    figure('color','white');
+    subplot(1,2,1);hold on;
+    title('Muscle components')
+    x = 0:250;
+    y = double(mean(squeeze(gaitSPEC.logspec(1,muscle_ic,:))));
+    E = double(std(squeeze(gaitSPEC.logspec(1,muscle_ic,:))))./sqrt(length(muscle_ic));
+    JackKnife_sung(x,y',E',color.Blue,color.lightBlue);
+    y2 = double(mean(squeeze(gaitSPEC.gaitSPEC_subRest(1,muscle_ic,:))));
+    E2 = double(std(squeeze(gaitSPEC.gaitSPEC_subRest(1,muscle_ic,:))))/sqrt(length(muscle_ic));
+    JackKnife_sung(x,y2',E2',color.Purple,color.lightPurple);
+    y2 = double(mean(squeeze(gaitSPEC.SPEC_corr(1,muscle_ic,:))));
+    E2 = double(std(squeeze(gaitSPEC.SPEC_corr(1,muscle_ic,:))))/sqrt(length(muscle_ic));
+    JackKnife_sung(x,y2',E2',color.Green,color.lightGreen);
+    y3 = double(mean(squeeze(gaitSPEC.SPEC_corr(1,muscle_ic,:))+squeeze(restSPEC.logspec(1,muscle_ic,:))));
+    E3 = double(std(squeeze(gaitSPEC.SPEC_corr(1,muscle_ic,:))+squeeze(restSPEC.logspec(1,muscle_ic,:))))/sqrt(length(muscle_ic));
+    JackKnife_sung(x,y3',E3',color.Orange,color.Yellow);
+%     legend('','Raw','','remove rest','','corrected','','corrected+rest')
+    xlim([3 80]);
+    xlabel('Frequency(Hz)');ylabel('log Power (dB)');
+    set(gca,'fontsize',12);
+
+    subplot(1,2,2);hold on;
+    title('Brain components')
+    x = 0:250;
+    y = double(mean(squeeze(gaitSPEC.logspec(1,brain_ic,:))));
+    E = double(std(squeeze(gaitSPEC.logspec(1,brain_ic,:))))/sqrt(length(brain_ic));
+    JackKnife_sung(x,y',E',color.Blue,color.lightBlue);
+    y2 = double(mean(squeeze(gaitSPEC.gaitSPEC_subRest(1,brain_ic,:))));
+    E2 = double(std(squeeze(gaitSPEC.gaitSPEC_subRest(1,brain_ic,:))))/sqrt(length(brain_ic));
+    JackKnife_sung(x,y2',E2',color.Purple,color.lightPurple);
+    y2 = double(mean(squeeze(gaitSPEC.SPEC_corr(1,brain_ic,:))));
+    E2 = double(std(squeeze(gaitSPEC.SPEC_corr(1,brain_ic,:))))/sqrt(length(brain_ic));
+    JackKnife_sung(x,y2',E2',color.Green,color.lightGreen);
+    y3 = double(mean(squeeze(gaitSPEC.SPEC_corr(1,brain_ic,:))+squeeze(restSPEC.logspec(1,brain_ic,:))));
+    E3 = double(std(squeeze(gaitSPEC.SPEC_corr(1,brain_ic,:))+squeeze(restSPEC.logspec(1,brain_ic,:))))/sqrt(length(brain_ic));
+    JackKnife_sung(x,y3',E3',color.Orange,color.Yellow);
+%     legend('','Raw','','remove rest','','corrected','','corrected+rest')
+    xlabel('Frequency(Hz)');ylabel('log Power (dB)');
+    xlim([3 80]);
+    set(gca,'fontsize',12);
+
+    %%
+    %%% plot all brain ics
+    figure();
+    plot(x,squeeze(gaitSPEC.gaitSPEC_subRest(1,:,:)))
+
+    figure();% This is the 1st PC removed
+    Ai = gaitSPEC.V.';
+    plot(x,gaitSPEC.V(:,1))
+
+    figure();
+    plot(x,squeeze(gaitSPEC.PSC1(1,:,:)))
+    
+    figure();
+    plot(x,gaitSPEC.ERSP_psc1);
+
+    load_spec_spca = fullfile(load_dir, sub_ID,'GAIT_EPOCHED_ALL','0p250p50p751p0flatlowmedhigh',['gaitSPEC_',sub_ID,'_','med']); 
+    load(load_spec_spca);
+    [SPEC_corr, GPM_corr, PSC1,allPSC] = specPCAdenoising_CL(gaitSPEC_cond.gaitSPEC_subRest, gaitSPEC.V);
+
+    figure();
+    subplot(1,2,1)
+    plot(x,squeeze(allPSC{1}(1,brain_ic,:)));
+    subplot(1,2,2)
+    plot(x,squeeze(allPSC{2}));
+
+    figure()
+    imagesc(x,x,squeeze(gaitSPEC.V(:,1,:)))
+    
+    figure()
+    plot(x,squeeze(PSC1))
+end
+
+%% ===== All the supplementary plots
+%% (For supplementary figure of the paper) - Gather first principal component of SPEC from SPCA
+sub_cl = TMP_STUDY.cluster(i).sets;
+for n = 1:length(sub_cl)
+    sub_ID = TMP_STUDY.datasetinfo(sub_cl(n)).subject;
+    load_spec_spca = fullfile(load_dir, sub_ID,'GAIT_EPOCHED_ALL','0p250p50p751p0flatlowmedhigh',['gaitSPEC_',sub_ID,'.mat']); 
+    load(load_spec_spca);
+    first_PC(:,n) = gaitSPEC.V(:,1);
+end
+
+% (For supplementary figure of the paper) - Gather first principal component of ERSP from SPCA
+sub_cl = TMP_STUDY.cluster(i).sets;
+for n = 1:length(sub_cl)
+    sub_ID = TMP_STUDY.datasetinfo(sub_cl(n)).subject;
+    load_ersp_spca = fullfile(load_dir, sub_ID,'GAIT_EPOCHED_ALL','0p250p50p751p0flatlowmedhigh',['gaitERSP_',sub_ID,'.mat']); 
+    load(load_ersp_spca);
+    first_PC_ERSP(:,n) = gaitERSP.V(:,1);
+    
+end
+
+figure('color','white','position',[100 100 500 250]);hold on;
+subplot(1,2,1);hold on;
+x = 0:250;
+y = first_PC;
+E = 0;%std(y,[],2)/sqrt(length(sub_cl));
+JackKnife_sung(x,nanmean(y,2),E,color.all_trial(1,:),color.all_trial(2,:));
+xlabel('Frequency (Hz)');
+ylabel('Eigenvector');
+title('1st PC - PSD');
+set(gca,'fontsize',13,'xtick',[2 50 100 150 200]);
+xlim([2 200]);
+
+subplot(1,2,2);hold on;
+x = 1:200;
+y = first_PC_ERSP;
+E = 0;%std(y,[],2)/sqrt(length(sub_cl));
+JackKnife_sung(x,nanmean(y,2),E,color.all_trial(1,:),color.all_trial(2,:));
+%plot(x,y);
+xlabel('Frequency (Hz)');
+ylabel('Eigenvector');
+title('1st PC - ERSP');
+set(gca,'fontsize',13,'xtick',[2 50 100 150 200]);
+xlim([2 200]);
+
 % keyboard
-%% Supplementary figure!! - plot the raw vs. corrected PSDs
+%% (Supplementary figure!!) - plot the raw vs. corrected PSDs
 % using cluster 7
 plotSupplementaryFigure = 1;
 if plotSupplementaryFigure 
@@ -749,9 +807,9 @@ if plotSupplementaryFigure
     load(fullfile(cluster_dir,'ERSP_Plots',['Cluster_',num2str(i)],'SPCA_results_SPEC.mat'));  
 
     design = 1:4;
-    f1 = figure('color','w','position',[100 100 1200 300]);
+    f1 = figure('color','w','position',[100 100 250 1200]);
 
-    subplot(1,5,1)
+    subplot(5,1,1)
     for cond = design
         x = 0:250;
         y = SPCA_results_spec.SPEC_raw{cond,1};
@@ -762,14 +820,54 @@ if plotSupplementaryFigure
     y = SPCA_results_spec.SPEC_rest{1,1};
     E = std(y,[],2)/sqrt(size(y,2));
     JackKnife_sung(x,nanmean(y,2),E,color.all_trial(1,:),color.all_trial_shade(1,:));
-    xlim([3 70]);
+    xlim([3 80]);
     xlabel('Frequency (Hz)');
     ylabel('Log Power (dB)');
-    title('PSD_{Raw}','color',color.Blue);
+    title('PSD_{Raw}');
     ylim([-35 -10]);
     set(gca,'fontsize',10);
     
-    subplot(1,5,2)
+    subplot(5,1,2)
+    for cond = design
+        x = 0:250;
+        y = SPCA_results_spec.SPEC_subRest{cond,1};
+        E = std(y,[],2)/sqrt(size(y,2));
+        JackKnife_sung(x,nanmean(y,2),E,color.all_trial(cond+1,:),color.all_trial(cond+1,:));
+    end
+    xlim([3 80]);tmp_gca = gca; ylim_2 = tmp_gca.YLim;
+    xlabel('Frequency (Hz)');
+    ylabel('Log Power (dB)');
+    title('PSD_{Raw} - PSD_{Rest}');
+    set(gca,'fontsize',10);ylim([-7 4])
+    
+    subplot(5,1,3)
+    for cond = design
+        x = 0:250;
+        y = SPCA_results_spec.PSC1{cond,1};
+        E = std(y,[],2)/sqrt(size(y,2));
+        JackKnife_sung(x,nanmean(y,2),E,color.all_trial(cond+1,:),color.all_trial(cond+1,:));
+    end
+    xlim([3 80]);
+    xlabel('Frequency (Hz)');
+    ylabel('Log Power (dB)');
+    title('PSC removed');
+    set(gca,'fontsize',10);ylim([-7 4])
+%     saveas(f1,fullfile(cluster_dir,'ERSP_Plots',['Cluster_',num2str(i)],'SPCA_results_SPEC.jpg'));  
+    %}
+    subplot(5,1,4)
+    for cond = design
+        x = 0:250;
+        y = SPCA_results_spec.SPEC_corr{cond,1};
+        E = std(y,[],2)/sqrt(size(y,2));
+        JackKnife_sung(x,nanmean(y,2),E,color.all_trial(cond+1,:),color.all_trial(cond+1,:));
+    end
+    xlim([3 80]);ylim([-7 4])
+    xlabel('Frequency (Hz)');
+    ylabel('Log Power (dB)');
+    title('PSD_{sPCA corrected}');
+    set(gca,'fontsize',10);
+    
+    subplot(5,1,5)
     for cond = design
         x = 0:250;
         y = SPCA_results_spec.SPEC_corr_addRest{cond,1};
@@ -780,54 +878,19 @@ if plotSupplementaryFigure
     y = SPCA_results_spec.SPEC_rest{1,1};
     E = std(y,[],2)/sqrt(size(y,2));
     JackKnife_sung(x,nanmean(y,2),E,color.all_trial(1,:),color.all_trial_shade(1,:));
-    xlim([3 70]);ylim([-35 -10]);
+    xlim([3 80]);ylim([-35 -10]);
     xlabel('Frequency (Hz)');
-    ylabel('');
-    title('PSD_{sPCA corrected} + PSD_{Rest}','color',color.Red);
+    ylabel('Log Power (dB)');
+    title('PSD_{sPCA corrected} + PSD_{Rest}');
     set(gca,'fontsize',10);
     
-    subplot(1,5,3)
-    for cond = design
-        x = 0:250;
-        y = SPCA_results_spec.SPEC_subRest{cond,1};
-        E = std(y,[],2)/sqrt(size(y,2));
-        JackKnife_sung(x,nanmean(y,2),E,color.all_trial(cond+1,:),color.all_trial(cond+1,:));
-    end
-    xlim([3 70]);tmp_gca = gca; ylim_2 = tmp_gca.YLim;
-    xlabel('Frequency (Hz)');
-    ylabel('');
-    title('PSD_{Raw} - PSD_{Rest}','color',color.Green);
-    set(gca,'fontsize',10);
-    
-    subplot(1,5,4)
-    for cond = design
-        x = 0:250;
-        y = SPCA_results_spec.SPEC_corr{cond,1};
-        E = std(y,[],2)/sqrt(size(y,2));
-        JackKnife_sung(x,nanmean(y,2),E,color.all_trial(cond+1,:),color.all_trial(cond+1,:));
-    end
-    xlim([3 70]);ylim(ylim_2);
-    xlabel('Frequency (Hz)');
-    ylabel('');
-    title('PSD_{sPCA corrected}','color',color.Yellow);
-    set(gca,'fontsize',10);
-    
-    subplot(1,5,5)
+    figure();
     for cond = design
         x = 0:250;
         y = SPCA_results_spec.PSC1{cond,1};
-        E = std(y,[],2)/sqrt(size(y,2));
-        JackKnife_sung(x,nanmean(y,2),E,color.all_trial(cond+1,:),color.all_trial(cond+1,:));
+        plot(x,y,'color',color.all_trial(cond+1,:))
     end
-    xlim([3 70]);
-    xlabel('Frequency (Hz)');
-    ylabel('');
-    title('PSC removed');
-    set(gca,'fontsize',10);
-%     saveas(f1,fullfile(cluster_dir,'ERSP_Plots',['Cluster_',num2str(i)],'SPCA_results_SPEC.jpg'));  
-    %}
-
-    %% Sanity check - compare corrected vs. original PSD
+    % Sanity check - compare corrected vs. original PSD
     figure('color','w');
     subplot(2,2,1)
     for cond = 1:4
@@ -853,7 +916,8 @@ if plotSupplementaryFigure
     ylabel('Log Power (dB)');
     title('SPEC Original');
 
-    subplot(2,2,3)
+    figure('color','w')
+    subplot(2,2,1)
     for cond = 5:8
         x = 0:250;
         y = SPCA_results_spec.SPEC_corr_addRest{cond,1};
@@ -865,7 +929,7 @@ if plotSupplementaryFigure
     ylabel('Log Power (dB)');
     title('SPEC Corrected');
 
-    subplot(2,2,4)
+    subplot(2,2,2)
     for cond = 5:8
         x = 0:250;
         y = SPCA_results_spec.SPEC_raw{cond,1};
@@ -877,27 +941,209 @@ if plotSupplementaryFigure
     ylabel('Log Power (dB)');
     title('SPEC Original');
 end
-%% Gather Raw SPEC PSD (not SPCA corrected) for each cluster
-% Cautious: take a long time to run, it is not used anymore
-% if ~ispc
-%     cluster_dir = convertPath2UNIX(CLUSTER_DIRS{k_i});
-% else
-%     cluster_dir = convertPath2Drive(CLUSTER_DIRS{k_i});
-% end
-generateOriginalPSD = false
-if generateOriginalPSD
-    plot_store_dir = [cluster_dir filesep 'plots_out'];
-    if ~exist(plot_store_dir,'dir')
-        mkdir(plot_store_dir);
-    end
-    spec_data_dir = [cluster_dir filesep 'in_brain' filesep 'spec_data'];
-    if ~exist(spec_data_dir,'dir')
-        mkdir(spec_data_dir)
-    end
 
-    mim_gen_cluster_spec_CL(TMP_STUDY,TMP_ALLEEG,cluster_dir,spec_data_dir,CLUSTER_PICKS);
-    mim_gen_cluster_spec_CL(TMP_STUDY_gait,TMP_ALLEEG_gait,cluster_dir,spec_data_dir,CLUSTER_PICKS);
+%% (Supplementary figure of the paper) - Gather corrected and uncorrected, first principal component of ERSP from SPCA
+% Sanity check for one participant
+sub_ID = 'H1004';
+load(fullfile(load_dir,'H1004','GAIT_EPOCHED_ALL','0p250p50p751p0flatlowmedhigh','H1004.icatimef'),'-mat','parameters');
+warpingvalue = round(parameters{find(strcmp(parameters,'timewarpms'))+1});
+
+cond = 1;
+fprintf('\n loading from %s',sub_ID);
+load(fullfile(load_dir,sub_ID,'GAIT_EPOCHED_ALL','0p250p50p751p0flatlowmedhigh','reject_ic',[sub_ID,'_ICRej.mat']));
+muscle_ic = find(reject_struct.IC_all_muscle >= 2);muscle_idn = [1:length(muscle_ic)];
+brain_ic = find(reject_struct.IC_all_brain >= 8);
+
+load_ersp_spca = fullfile(load_dir, sub_ID,'GAIT_EPOCHED_ALL','0p250p50p751p0flatlowmedhigh',['gaitERSP_',sub_ID,'_',terrain_trials{cond}]); 
+load(load_ersp_spca);
+[ERSP_GPM_corr_sub] = gaitERSP_cond.GPM_corr(:,muscle_ic(muscle_idn),:);%ERSP_spca = time x  comp x freqs
+fprintf('. %s',num2str(muscle_ic(1)));
+[ERSP_corr_sub] = gaitERSP_cond.ERSP_corr(:,muscle_ic(muscle_idn),:);
+[ERSP_GPM_sub] = gaitERSP_cond.GPM(:,muscle_ic(muscle_idn),:);
+[ERSP_PSC1_sub_raw] = gaitERSP_cond.PSC1(:,muscle_ic(muscle_idn),:);% Added by CL - 9/10/2025, % need to be convert to fluctuation
+ERSP_PSC1_sub_raw_mean = mean(gaitERSP_cond.PSC1(:,muscle_ic(muscle_idn),:),1);
+ERSP_PSC1_sub_raw_fluc = bsxfun(@minus,ERSP_PSC1_sub_raw,mean(ERSP_PSC1_sub_raw_mean));
+
+% ------- Make plot -----------------
+% set up the plotting parameters
+figure('color','white','position',[200 200 600 200],'renderer','Painters');
+subplot(1,3,1)
+tftopo(squeeze(mean(ERSP_GPM_corr_sub(:,:,:),2)),gaitERSP_cond.times,gaitERSP_cond.logfreqs,...
+            'title','SPCA Corrected (Muscle)','limits',[0 1461 nan nan -0.5 0.5],...
+            'vert',[warpingvalue(2:4)],'logfreq','native');
+        xlim([0 1461]);ylim(log([4 200]))
+set(gca,'YTick',log([4.01,8,13,30,50,100,200])); 
+set(gca,'YTickLabel',{'4','8','13','30','50','100','200'},'Fontsize',10);
+set(gca,'XTick',warpingvalues,'XTicklabel',{'RFS','LFO','LFS','RFO','RFS'});xtickangle(45)
+ax = gca; ax.XAxis.FontSize = 8;
+
+subplot(1,3,2)
+tftopo(squeeze(mean(ERSP_GPM_sub(:,:,:),2)),gaitERSP_cond.times,gaitERSP_cond.logfreqs,...
+            'title','Raw (Muscle) ','limits',[0 1461 nan nan -0.5 0.5],...
+            'vert',[warpingvalue(2:4)],'logfreq','native');
+        xlim([0 1461]);ylim(log([4 200]))
+set(gca,'YTick',log([4.01,8,13,30,50,100,200])); 
+set(gca,'YTickLabel',{'4','8','13','30','50','100','200'},'Fontsize',10);
+set(gca,'XTick',warpingvalues,'XTicklabel',{'RFS','LFO','LFS','RFO','RFS'});xtickangle(45)
+ylabel('')
+ax = gca; ax.XAxis.FontSize = 8;
+
+subplot(1,3,3)
+tftopo(squeeze(mean(ERSP_PSC1_sub_raw_fluc(:,:,:),2)),gaitERSP_cond.times,gaitERSP_cond.logfreqs,...
+            'title','PSC1','limits',[0 1461 nan nan -0.5 0.5],...
+            'vert',[warpingvalue(2:4)],'logfreq','native');
+        xlim([0 1461]);ylim(log([4 200]))
+set(gca,'YTick',log([4.01,8,13,30,50,100,200])); 
+set(gca,'YTickLabel',{'4','8','13','30','50','100','200'},'Fontsize',10);
+ylabel('')
+
+colormap(colormap_ersp);
+xlabel('','Fontsize',10);
+set(gca,'XTick',warpingvalues,'XTicklabel',{'RFS','LFO','LFS','RFO','RFS'});
+xtickangle(45)
+ax = gca; ax.XAxis.FontSize = 8;
+xlim([warpingvalues(1)-0.01 warpingvalues(end)+0.01]);
+hp4 = get(subplot(1,3,3),'Position');
+c = colorbar('Position',[hp4(1)+hp4(3)+0.01  hp4(2)-0.0085 0.012  hp4(4)]);
+c.Limits = [-0.5, 0.5];
+hL = ylabel(c,[{'\Delta Power'};{'(dB)'}],'fontweight',...
+    'bold','FontName','Arial','FontSize',9);
+set(hL,'Rotation',90);
+hL.Position(1) = hL.Position(1)-0.3;
+hL.Position(2) = hL.Position(2);
+exportgraphics(gcf,'J:\ChangLiu\UFL Dropbox\Chang Liu\transfer\ERSP_SPCA_muscle.pdf');
+
+% brain ICs
+[ERSP_GPM_corr_sub_brain] = gaitERSP_cond.GPM_corr(:,brain_ic,:);%ERSP_spca = time x  comp x freqs
+[ERSP_corr_sub_brain] = gaitERSP_cond.ERSP_corr(:,brain_ic,:);
+[ERSP_GPM_sub_brain] = gaitERSP_cond.GPM(:,brain_ic,:);
+[ERSP_PSC1_sub_brain_raw] = gaitERSP_cond.PSC1(:,brain_ic,:);% Added by CL - 9/10/2025
+ERSP_PSC1_sub_brain_raw_mean = mean(gaitERSP_cond.PSC1(:,brain_ic,:),1);
+ERSP_PSC1_sub_brain_raw_fluc = bsxfun(@minus,ERSP_PSC1_sub_brain_raw,mean(ERSP_PSC1_sub_brain_raw_mean));
+
+figure('color','white','position',[200 200 600 200],'renderer','Painters');
+subplot(1,3,1)
+tftopo(squeeze(mean(ERSP_GPM_corr_sub_brain(:,:,:),2)),gaitERSP_cond.times,gaitERSP_cond.logfreqs,...
+            'title','SPCA Corrected (Brain)','limits',[0 1461 nan nan -0.5 0.5],...
+            'vert',[warpingvalue(2:4)],'logfreq','native');
+        xlim([0 1461]);ylim(log([4 200]))
+set(gca,'YTick',log([4.01,8,13,30,50,100,200])); 
+set(gca,'YTickLabel',{'4','8','13','30','50','100','200'},'Fontsize',10);
+set(gca,'XTick',warpingvalues,'XTicklabel',{'RFS','LFO','LFS','RFO','RFS'});xtickangle(45)
+ax = gca; ax.XAxis.FontSize = 8;
+ylabel('')
+
+subplot(1,3,2)
+tftopo(squeeze(mean(ERSP_GPM_sub_brain(:,:,:),2)),gaitERSP_cond.times,gaitERSP_cond.logfreqs,...
+            'title','Raw (Brain)','limits',[0 1461 nan nan -0.5 0.5],...
+            'vert',[warpingvalue(2:4)],'logfreq','native');
+        xlim([0 1461]);ylim(log([4 200]))
+set(gca,'YTick',log([4.01,8,13,30,50,100,200])); 
+set(gca,'YTickLabel',{'4','8','13','30','50','100','200'},'Fontsize',10);
+set(gca,'XTick',warpingvalues,'XTicklabel',{'RFS','LFO','LFS','RFO','RFS'});xtickangle(45)
+ax = gca; ax.XAxis.FontSize = 8;
+ylabel('')
+
+subplot(1,3,3)
+tftopo(squeeze(mean(ERSP_PSC1_sub_brain_raw_fluc(:,:,:),2)),gaitERSP_cond.times,gaitERSP_cond.logfreqs,...
+            'title','PSC1','limits',[0 1461 nan nan -0.5 0.5],...
+            'vert',[warpingvalue(2:4)],'logfreq','native');
+        xlim([0 1461]);ylim(log([4 200]))
+set(gca,'YTick',log([4.01,8,13,30,50,100,200])); 
+set(gca,'YTickLabel',{'4','8','13','30','50','100','200'},'Fontsize',10);
+ylabel('')
+
+colormap(colormap_ersp);
+xlabel('','Fontsize',10);
+set(gca,'XTick',warpingvalues,'XTicklabel',{'RFS','LFO','LFS','RFO','RFS'});
+xtickangle(45)
+ax = gca; ax.XAxis.FontSize = 8;
+xlim([warpingvalues(1)-0.01 warpingvalues(end)+0.01]);
+
+hp4 = get(subplot(1,3,3),'Position');
+c = colorbar('Position',[hp4(1)+hp4(3)+0.01  hp4(2)-0.0085 0.012  hp4(4)]);
+c.Limits = [-0.5, 0.5];
+hL = ylabel(c,[{'\Delta Power'};{'(dB)'}],'fontweight',...
+    'bold','FontName','Arial','FontSize',9);
+set(hL,'Rotation',90);
+hL.Position(1) = hL.Position(1)-0.3;
+hL.Position(2) = hL.Position(2);
+exportgraphics(gcf,'J:\ChangLiu\UFL Dropbox\Chang Liu\transfer\ERSP_SPCA_brain.pdf');
+
+%% (Supplementary Figure - ERSP SPCA and PSC1, for all participants)
+clust_i = CLUSTER_SWEEP_VALS(3);
+reduce_method = 'max_iclabel';
+cluster_dir = [tmp_dir filesep num2str(clust_i) filesep reduce_method];
+
+load_ersp_spca = fullfile(load_dir, 'H1004','GAIT_EPOCHED_ALL','0p250p50p751p0flatlowmedhigh',['gaitERSP_','H1004','_','flat']);
+load(load_ersp_spca)
+
+load(fullfile(load_dir,'H1004','GAIT_EPOCHED_ALL','0p250p50p751p0flatlowmedhigh','H1004.icatimef'),'-mat','parameters');
+warpingvalues = round(parameters{find(strcmp(parameters,'timewarpms'))+1});
+group = 2;
+climMax = 0.3;
+close all;
+for k = 10%[3:14]
+    f1 = figure('color','white','position',[200 200 600 200],'renderer','Painters');
+    load(fullfile(cluster_dir,'ERSP_Plots',['Cluster_',num2str(k)],'SPCA_results_20250910.mat'));
+    
+    cond = 4;
+    
+    [ERSP_PSC1_all_PSC1] = SPCA_results.PSC1{cond}(:,SPCA_results.group_store==group,:);
+    ERSP_PSC1_all_mean = mean(ERSP_PSC1_all_PSC1,1);
+    ERSP_PSC1_all_fluc = bsxfun(@minus,ERSP_PSC1_all_PSC1,mean(ERSP_PSC1_all_mean ));
+       
+    subplot(1,3,1)
+    tftopo(squeeze(mean(SPCA_results.ERSP_GPM_corr{cond,1}(:,SPCA_results.group_store==group,:),2)),gaitERSP_cond.times,gaitERSP_cond.logfreqs,...
+            'title','SPCA Corrected (Brain)','limits',[0 1461 nan nan -climMax climMax],...
+            'vert',[warpingvalue(2:4)],'logfreq','native');
+        xlim([0 1461]);ylim(log([4 200]))
+    set(gca,'YTick',log([4.01,8,13,30,50,100,200])); 
+    set(gca,'YTickLabel',{'4','8','13','30','50','100','200'},'Fontsize',10);
+    set(gca,'XTick',warpingvalues,'XTicklabel',{'RFS','LFO','LFS','RFO','RFS'});xtickangle(45)
+    ax = gca; ax.XAxis.FontSize = 8;
+    ylabel('')
+    
+    subplot(1,3,2)
+    tftopo(squeeze(mean(SPCA_results.ERSP_GPM{cond,1}(:,SPCA_results.group_store==group,:),2)),gaitERSP_cond.times,gaitERSP_cond.logfreqs,...
+        'title','Raw (Brain)','limits',[0 1461 nan nan -climMax climMax],...
+            'vert',[warpingvalue(2:4)],'logfreq','native');
+        xlim([0 1461]);ylim(log([4 200]))
+    set(gca,'YTick',log([4.01,8,13,30,50,100,200])); 
+    set(gca,'YTickLabel',{'4','8','13','30','50','100','200'},'Fontsize',10);
+    set(gca,'XTick',warpingvalues,'XTicklabel',{'RFS','LFO','LFS','RFO','RFS'});xtickangle(45)
+    ax = gca; ax.XAxis.FontSize = 8;
+    ylabel('')
+%     savefig(f1, fullfile(cluster_dir,'ERSP_Plots',['Cluster_',num2str(k)],'SPCA_results.fig'));
+        
+    subplot(1,3,3)
+    tftopo(squeeze(mean(ERSP_PSC1_all_fluc(:,:,:),2)),gaitERSP_cond.times,gaitERSP_cond.logfreqs,...
+        'title','Raw (Brain)','limits',[0 1461 nan nan -climMax climMax],...
+            'vert',[warpingvalue(2:4)],'logfreq','native');
+        xlim([0 1461]);ylim(log([4 200]))
+    set(gca,'YTick',log([4.01,8,13,30,50,100,200])); 
+    set(gca,'YTickLabel',{'4','8','13','30','50','100','200'},'Fontsize',10);
+    set(gca,'XTick',warpingvalues,'XTicklabel',{'RFS','LFO','LFS','RFO','RFS'});xtickangle(45)
+    ax = gca; ax.XAxis.FontSize = 8;
+    ylabel('')
+    
+    colormap(colormap_ersp);
+    xlabel('','Fontsize',10);
+    set(gca,'XTick',warpingvalues,'XTicklabel',{'RFS','LFO','LFS','RFO','RFS'});
+    xtickangle(45)
+    ax = gca; ax.XAxis.FontSize = 8;
+    xlim([warpingvalues(1)-0.01 warpingvalues(end)+0.01]);
+
+    hp4 = get(subplot(1,3,3),'Position');
+    c = colorbar('Position',[hp4(1)+hp4(3)+0.01  hp4(2)-0.0085 0.012  hp4(4)]);
+    c.Limits = [-climMax climMax];
+    hL = ylabel(c,[{'\Delta Power'};{'(dB)'}],'fontweight',...
+        'bold','FontName','Arial','FontSize',9);
+    set(hL,'Rotation',90);
+    hL.Position(1) = hL.Position(1)-0.3;
+    hL.Position(2) = hL.Position(2);
 end
+
 %% =================== 
 %% FOOOF Analysis
 % j = 4;

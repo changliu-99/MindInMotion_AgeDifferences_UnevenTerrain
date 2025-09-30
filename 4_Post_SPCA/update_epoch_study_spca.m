@@ -1,19 +1,14 @@
-%Run after DIPFIT and epoching. This puts all good dipoles into a study for
-%clustering and ERSP plotting.
+%   Project Title: MiM Age difference paper
+
+%   Run after DIPFIT and epoching. This puts all good dipoles into a study for
+%   clustering and ERSP plotting.
 
 % Jacob rerun the dipole fitting on 4/16/2024. Run add all the dipole info
 
 %   Code Designer: Jacob salminen, Chang Liu
 %
 
-%{
-%## RESTORE MATLABs
-% WARNING: restores default pathing to matlab 
-restoredefaultpath;
-clc;
-close all;
-clearvars
-%}
+
 %% (REQUIRED SETUP 4 ALL SCRIPTS) ====================================== %%
 %- DATE TIME
 dt = datetime;
@@ -124,10 +119,7 @@ ERSP_STAT_PARAMS = struct('condstats','on',... % ['on'|'off]
     'fieldtripmethod','montecarlo',... %[('montecarlo'/'permutation')|'parametric']
     'fieldtripmcorrect','fdr',...  % ['cluster'|'fdr']
     'fieldtripnaccu',2000);
-% (07/16/2023) JS, updating mcorrect to fdr as per CL YA paper
-% (07/16/2023) JS, updating method to bootstrap as per CL YA paper
-% (07/19/2023) JS, subbaseline set to off 
-% (07/20/2023) JS, subbaseline set to on, generates different result? 
+
 SPEC_STAT_PARAMS = struct('condstats','on',... % ['on'|'off]
     'groupstats','off',... %['on'|'off']
     'method','perm',... % ['param'|'perm'|'bootstrap']
@@ -137,9 +129,7 @@ SPEC_STAT_PARAMS = struct('condstats','on',... % ['on'|'off]
     'fieldtripmethod','montecarlo',... %[('montecarlo'/'permutation')|'parametric']
     'fieldtripmcorrect','fdr',...  % ['cluster'|'fdr']
     'fieldtripnaccu',2000);
-% (07/16/2023) JS, updating mcorrect to fdr as per CL YA paper
-% (07/31/2023) JS, changing fieldtripnaccu from 2000 to 10000 to match CL's
-% pipeline although this doesn't align with her YA manuscript methods?
+
 SPEC_PARAMS = struct('freqrange',[1,200],...
     'subject','',...
     'specmode','psd',...
@@ -240,11 +230,8 @@ for group_i = 1:length(SUBJ_ITERS)
     %## Assigning paths for .set, headmodel,& channel file
     for subj_i = sub_idx
         %- ICA fPaths
-%         fPaths_epoch{cnt} = [load_dir filesep SUBJ_PICS{group_i}{subj_i} filesep 'GAIT_EPOCHED_ALL' filesep '0p250p50p751p0flatlowmedhigh'];
-%         fPaths{cnt} = [load_dir filesep SUBJ_PICS{group_i}{subj_i} filesep 'ICA'];
         path_clean = [OUTSIDE_DATA_DIR filesep SUBJ_PICS{group_i}{subj_i} filesep 'clean'];
         path_epoch = [load_dir filesep SUBJ_PICS{group_i}{subj_i} filesep 'SLIDING_EPOCHED_ALL' filesep 'rest'];
-%         path_epoch = [load_dir filesep SUBJ_PICS{group_i}{subj_i} filesep 'GAIT_EPOCHED_ALL' filesep '0p250p50p751p0flatlowmedhigh'];
         
         if ~isempty(dir([path_clean filesep '*.set'])) & ~isempty(dir([path_epoch filesep '*.set']))
             fPaths{cnt} = [OUTSIDE_DATA_DIR filesep SUBJ_PICS{group_i}{subj_i} filesep 'clean'];
@@ -262,10 +249,7 @@ for group_i = 1:length(SUBJ_ITERS)
                 fNames{cnt} = tmp(1).name;
                 fNames_epoch{cnt} = tmp_epoch(1).name;
                 %- Chanlocs fPaths
-        %         chanlocs_fPaths{cnt} = [DATA_DIR filesep DATA_SET filesep SUBJ_PICS{group_i}{subj_i} filesep 'EEG' filesep 'HeadScan' filesep 'CustomElectrodeLocations.mat'];
                 chanlocs_fPaths{cnt} = [DATA_DIR filesep DATA_SET filesep SUBJ_PICS{group_i}{subj_i} filesep 'MRI' filesep 'CustomElectrodeLocations.mat'];
-        %         dipfit_fPaths{cnt} = [OUTSIDE_DATA_DIR filesep SUBJ_PICS{group_i}{subj_i} filesep 'head_model' filesep 'dipfit_struct.mat'];
-    %             dipfit_norm_fPaths{cnt} = [fPaths{cnt} filesep 'dipfit_fem_norm.mat'];
     
                 %% Use the latest dipole location in Jacob's folder 20240420
                 dipfit_norm_fPaths_old{cnt} = [fPaths_dipole_old{cnt} filesep 'dipfit_fem_norm_ants.mat'];
